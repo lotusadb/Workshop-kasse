@@ -176,7 +176,7 @@
           <input id="new-aantal" type="number" min="1" value="1">
         </div>
         <div>
-          <label>Prijs p/s (&#8364;)</label>
+          <label>Prijs p/s incl. btw (&#8364;)</label>
           <input id="new-prijs" type="number" min="0" step="0.01" placeholder="0.00">
         </div>
         <div>
@@ -286,7 +286,7 @@
 
       <label>Producten importeren vanuit Excel</label>
       <input type="file" id="excel-import" accept=".xlsx,.xls,.csv" onchange="handleExcelImport(event)">
-      <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" en eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
+      <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" (incl. btw) en eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
       <div id="import-status"></div>
 
       <div id="quickmanage" style="margin-top:14px;"></div>
@@ -296,7 +296,7 @@
           <input id="qi-naam" placeholder="Bijv. Workshop minerale make-up">
         </div>
         <div>
-          <label>Prijs (&#8364;)</label>
+          <label>Prijs incl. btw (&#8364;)</label>
           <input id="qi-prijs" type="number" min="0" step="0.01" placeholder="0.00">
         </div>
         <div>
@@ -576,10 +576,11 @@ function exportCSV(){
   invoices.forEach(inv=>{
     const datumStr = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL') : '';
     inv.items.forEach(it=>{
-      const inclBtw = it.aantal * it.prijs * (1 + it.btw/100);
+      const inclBtw = it.aantal * it.prijs;
+      const prijsExcl = it.prijs / (1 + it.btw/100);
       lines.push([
         datumStr, inv.nr, inv.klant, it.naam.replace(/;/g,','), it.aantal,
-        it.prijs.toFixed(2).replace('.',','), it.btw, inclBtw.toFixed(2).replace('.',',')
+        prijsExcl.toFixed(2).replace('.',','), it.btw, inclBtw.toFixed(2).replace('.',',')
       ].join(';'));
     });
   });
@@ -696,15 +697,18 @@ function renderItems(){
   let btwTotals = {};
   let grand = 0;
   items.forEach((it, idx)=>{
-    const lineTotal = it.aantal * it.prijs;
-    grand += lineTotal;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal * (it.btw/100);
+    const prijsIncl = it.prijs;
+    const lineTotalIncl = it.aantal * prijsIncl;
+    const prijsExcl = prijsIncl / (1 + it.btw/100);
+    const lineTotalExcl = it.aantal * prijsExcl;
+    grand += lineTotalIncl;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>'+it.naam+'</td>'+
       '<td class="num">'+it.aantal+'</td>'+
-      '<td class="num">'+fmt(it.prijs)+'</td>'+
+      '<td class="num">'+fmt(prijsIncl)+'</td>'+
       '<td class="num">'+it.btw+'%</td>'+
-      '<td class="num">'+fmt(lineTotal)+'</td>'+
+      '<td class="num">'+fmt(lineTotalIncl)+'</td>'+
       '<td></td>';
     const rmtd = tr.querySelector('td:last-child');
     const rmbtn = document.createElement('button');
@@ -722,15 +726,11 @@ function renderItems(){
     btwSum += btwTotals[rate];
     const row = document.createElement('div');
     row.className = 'totalrow';
-    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
-  const subRow = document.createElement('div');
-  subRow.className = 'totalrow';
-  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
-  btwWrap.insertBefore(subRow, btwWrap.firstChild);
 
-  document.getElementById('grandtotal').textContent = fmt(grand + btwSum);
+  document.getElementById('grandtotal').textContent = fmt(grand);
 }
 
 async function genereerFactuur(){
@@ -763,30 +763,27 @@ async function genereerFactuur(){
   let btwTotals = {};
   let grand = 0;
   items.forEach(it=>{
-    const lineTotal = it.aantal * it.prijs;
-    grand += lineTotal;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal * (it.btw/100);
+    const prijsIncl = it.prijs;
+    const lineTotalIncl = it.aantal * prijsIncl;
+    const prijsExcl = prijsIncl / (1 + it.btw/100);
+    const lineTotalExcl = it.aantal * prijsExcl;
+    grand += lineTotalIncl;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
-      '<td style="text-align:right;">'+fmt(it.prijs)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
-      '<td style="text-align:right;">'+fmt(lineTotal)+'</td>';
+      '<td style="text-align:right;">'+fmt(prijsIncl)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
+      '<td style="text-align:right;">'+fmt(lineTotalIncl)+'</td>';
     rows.appendChild(tr);
   });
   const btwWrap = document.getElementById('iv-btwrows');
   btwWrap.innerHTML='';
-  let btwSum=0;
-  const subRow = document.createElement('div');
-  subRow.className='totalrow';
-  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
-  btwWrap.appendChild(subRow);
   Object.keys(btwTotals).sort().forEach(rate=>{
-    btwSum += btwTotals[rate];
     const row = document.createElement('div');
     row.className='totalrow';
-    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
-  document.getElementById('iv-totaal').textContent = fmt(grand+btwSum);
+  document.getElementById('iv-totaal').textContent = fmt(grand);
 
   let kvkbtwLine = [];
   if(settings.kvk) kvkbtwLine.push('KvK '+settings.kvk);
@@ -795,7 +792,7 @@ async function genereerFactuur(){
   document.getElementById('iv-ibanline').textContent = settings.iban ? 'IBAN: '+settings.iban : '';
 
   invoices.unshift({
-    nr: factuurnr, datum, klant: klantnaam, totaal: grand+btwSum,
+    nr: factuurnr, datum, klant: klantnaam, totaal: grand,
     items: JSON.parse(JSON.stringify(items)), klantadres,
     bedrijfSnapshot: {...settings}
   });
@@ -875,30 +872,27 @@ function herprintFactuur(idx){
   rows.innerHTML='';
   let btwTotals={}; let grand=0;
   inv.items.forEach(it=>{
-    const lineTotal = it.aantal*it.prijs;
-    grand += lineTotal;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal*(it.btw/100);
+    const prijsIncl = it.prijs;
+    const lineTotalIncl = it.aantal * prijsIncl;
+    const prijsExcl = prijsIncl / (1 + it.btw/100);
+    const lineTotalExcl = it.aantal * prijsExcl;
+    grand += lineTotalIncl;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
     tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
-      '<td style="text-align:right;">'+fmt(it.prijs)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
-      '<td style="text-align:right;">'+fmt(lineTotal)+'</td>';
+      '<td style="text-align:right;">'+fmt(prijsIncl)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
+      '<td style="text-align:right;">'+fmt(lineTotalIncl)+'</td>';
     rows.appendChild(tr);
   });
   const btwWrap = document.getElementById('iv-btwrows');
   btwWrap.innerHTML='';
-  let btwSum=0;
-  const subRow = document.createElement('div');
-  subRow.className='totalrow';
-  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
-  btwWrap.appendChild(subRow);
   Object.keys(btwTotals).sort().forEach(rate=>{
-    btwSum += btwTotals[rate];
     const row = document.createElement('div');
     row.className='totalrow';
-    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
-  document.getElementById('iv-totaal').textContent = fmt(grand+btwSum);
+  document.getElementById('iv-totaal').textContent = fmt(grand);
   let kvkbtwLine=[];
   if(s.kvk) kvkbtwLine.push('KvK '+s.kvk);
   if(s.btwnr) kvkbtwLine.push('Btw-nr '+s.btwnr);
