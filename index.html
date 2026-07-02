@@ -423,6 +423,7 @@ function applySettingsToForm(){
 }
 
 async function saveSettings(){
+  const bestaandLogo = settings.logo;
   settings = {
     bedrijf: document.getElementById('s-bedrijf').value,
     straat: document.getElementById('s-straat').value,
@@ -437,6 +438,7 @@ async function saveSettings(){
     prefix: document.getElementById('s-prefix').value,
     teller: parseInt(document.getElementById('s-teller').value) || 1
   };
+  if(bestaandLogo){ settings.logo = bestaandLogo; }
   try{
     await storage.set('settings', JSON.stringify(settings));
     const tick = document.getElementById('savedtick');
