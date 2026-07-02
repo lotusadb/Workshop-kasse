@@ -154,7 +154,12 @@
         </div>
       </div>
       <label>Adres (optioneel)</label>
-      <input id="klant-adres" placeholder="Straat, postcode en plaats">
+      <div class="row3">
+        <input id="klant-straat" placeholder="Straatnaam">
+        <input id="klant-huisnummer" placeholder="Huisnummer">
+        <input id="klant-postcode" placeholder="Postcode">
+      </div>
+      <input id="klant-plaats" placeholder="Plaats" style="margin-top:10px;">
     </div>
 
     <div class="card">
@@ -238,17 +243,13 @@
       <label>Bedrijfsnaam</label>
       <input id="s-bedrijf" placeholder="Lotus Mineral Visagie">
       <label>Adres</label>
-      <input id="s-adres" placeholder="Straatnaam 12">
-      <div class="row2">
-        <div>
-          <label>Postcode</label>
-          <input id="s-postcode" placeholder="4116 AB">
-        </div>
-        <div>
-          <label>Plaats</label>
-          <input id="s-plaats" placeholder="Beusichem">
-        </div>
+      <div class="row3">
+        <input id="s-straat" placeholder="Straatnaam">
+        <input id="s-huisnummer" placeholder="Huisnummer">
+        <input id="s-postcode" placeholder="4116 AB">
       </div>
+      <label>Plaats</label>
+      <input id="s-plaats" placeholder="Beusichem">
       <div class="row2">
         <div>
           <label>KvK-nummer</label>
@@ -349,9 +350,9 @@
     </div>
   </div>
 
-  <div class="noprint" style="display:flex;gap:8px;">
-    <button class="btn btn-secondary" id="backbtn" style="display:none;" onclick="terugNaarFormulier()">&#8592; Terug naar bestelling</button>
-    <button class="btn btn-primary" id="mailbtn" style="display:none;" onclick="mailFactuur()">Mail naar e-Boekhouden</button>
+  <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-secondary" id="backbtn" style="display:none;flex:1 1 200px;width:auto;" onclick="terugNaarFormulier()">&#8592; Terug naar bestelling</button>
+    <button class="btn btn-primary" id="mailbtn" style="display:none;flex:1 1 200px;width:auto;" onclick="mailFactuur()">Mail naar e-Boekhouden</button>
   </div>
 
 </div>
@@ -408,7 +409,8 @@ function defaultQuickItems(){
 
 function applySettingsToForm(){
   document.getElementById('s-bedrijf').value = settings.bedrijf || 'Lotus Mineral Visagie';
-  document.getElementById('s-adres').value = settings.adres || '';
+  document.getElementById('s-straat').value = settings.straat || '';
+  document.getElementById('s-huisnummer').value = settings.huisnummer || '';
   document.getElementById('s-postcode').value = settings.postcode || '';
   document.getElementById('s-plaats').value = settings.plaats || 'Beusichem';
   document.getElementById('s-kvk').value = settings.kvk || '';
@@ -423,7 +425,8 @@ function applySettingsToForm(){
 async function saveSettings(){
   settings = {
     bedrijf: document.getElementById('s-bedrijf').value,
-    adres: document.getElementById('s-adres').value,
+    straat: document.getElementById('s-straat').value,
+    huisnummer: document.getElementById('s-huisnummer').value,
     postcode: document.getElementById('s-postcode').value,
     plaats: document.getElementById('s-plaats').value,
     kvk: document.getElementById('s-kvk').value,
@@ -707,7 +710,13 @@ function renderItems(){
 async function genereerFactuur(){
   if(items.length===0){ alert('Voeg eerst items toe.'); return; }
   const klantnaam = document.getElementById('klant-naam').value.trim() || 'Klant';
-  const klantadres = document.getElementById('klant-adres').value.trim();
+  const klantstraat = document.getElementById('klant-straat').value.trim();
+  const klanthuisnummer = document.getElementById('klant-huisnummer').value.trim();
+  const klantpostcode = document.getElementById('klant-postcode').value.trim();
+  const klantplaats = document.getElementById('klant-plaats').value.trim();
+  const klantadresregel1 = [klantstraat, klanthuisnummer].filter(Boolean).join(' ');
+  const klantadresregel2 = [klantpostcode, klantplaats].filter(Boolean).join(' ');
+  const klantadres = [klantadresregel1, klantadresregel2].filter(Boolean).join(', ');
   const factuurnr = document.getElementById('factuurnr').value.trim() || nextFactuurNummer();
   const datum = document.getElementById('factuurdatum').value;
 
@@ -715,7 +724,7 @@ async function genereerFactuur(){
   if(settings.logo){ ivLogo.src = settings.logo; ivLogo.style.display = 'block'; }
   else{ ivLogo.style.display = 'none'; }
   document.getElementById('iv-bedrijf').textContent = settings.bedrijf || 'Lotus Mineral Visagie';
-  document.getElementById('iv-adres').textContent = settings.adres || '';
+  document.getElementById('iv-adres').textContent = [settings.straat, settings.huisnummer].filter(Boolean).join(' ');
   document.getElementById('iv-postplaats').textContent = [settings.postcode, settings.plaats].filter(Boolean).join(' ');
   document.getElementById('iv-contact').textContent = [settings.email, settings.telefoon].filter(Boolean).join(' \u00B7 ');
   document.getElementById('iv-nr').textContent = factuurnr;
@@ -791,7 +800,10 @@ function terugNaarFormulier(){
   renderItems();
   document.getElementById('klant-naam').value='';
   document.getElementById('klant-email').value='';
-  document.getElementById('klant-adres').value='';
+  document.getElementById('klant-straat').value='';
+  document.getElementById('klant-huisnummer').value='';
+  document.getElementById('klant-postcode').value='';
+  document.getElementById('klant-plaats').value='';
   document.getElementById('factuurdatum').valueAsDate = new Date();
   document.getElementById('factuurnr').value = nextFactuurNummer();
 }
@@ -825,7 +837,7 @@ function herprintFactuur(idx){
   if(s.logo){ ivLogo2.src = s.logo; ivLogo2.style.display = 'block'; }
   else{ ivLogo2.style.display = 'none'; }
   document.getElementById('iv-bedrijf').textContent = s.bedrijf || 'Lotus Mineral Visagie';
-  document.getElementById('iv-adres').textContent = s.adres || '';
+  document.getElementById('iv-adres').textContent = [s.straat, s.huisnummer].filter(Boolean).join(' ');
   document.getElementById('iv-postplaats').textContent = [s.postcode, s.plaats].filter(Boolean).join(' ');
   document.getElementById('iv-contact').textContent = [s.email, s.telefoon].filter(Boolean).join(' \u00B7 ');
   document.getElementById('iv-nr').textContent = inv.nr;
