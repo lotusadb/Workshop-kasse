@@ -220,7 +220,7 @@
         </div>
       </div>
       <button class="btn btn-primary" onclick="genereerFactuur()">Factuur maken</button>
-      <p class="hint">Dit maakt een printbare factuur die je direct kan printen of als PDF opslaan (kies "Opslaan als PDF" in het printvenster). Volledig gratis, geen account nodig.</p>
+      <p class="hint">Dit maakt automatisch een PDF-factuur. Daarna kan je 'm downloaden of, op je telefoon, met &eacute;&eacute;n tik delen naar je mail-app (met de PDF er al bij). Volledig gratis, geen account nodig.</p>
     </div>
   </div>
 
@@ -352,12 +352,14 @@
 
   <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;">
     <button class="btn btn-secondary" id="backbtn" style="display:none;flex:1 1 200px;width:auto;" onclick="terugNaarFormulier()">&#8592; Terug naar bestelling</button>
+    <button class="btn btn-secondary" id="downloadbtn" style="display:none;flex:1 1 200px;width:auto;" onclick="downloadFactuurPDF()">Download PDF</button>
     <button class="btn btn-primary" id="mailbtn" style="display:none;flex:1 1 200px;width:auto;" onclick="mailFactuur()">Mail naar e-Boekhouden</button>
   </div>
 
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const storage = {
   async get(key){
@@ -372,6 +374,8 @@ const storage = {
 };
 let items = [];
 let currentInvoiceMeta = {nr:'', klant:''};
+let currentInvoicePDFBlob = null;
+let currentInvoicePDFName = '';
 let settings = {};
 let quickItems = [];
 let invoices = [];
@@ -563,9 +567,119 @@ function handleExcelImport(event){
   reader.readAsArrayBuffer(file);
 }
 
-function mailFactuur(){
+function buildInvoicePDF(d){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  let y = 20;
+
+  if(d.logo){
+    try{ doc.addImage(d.logo, 'JPEG', 15, y-8, 40, 16, undefined, 'FAST'); }catch(e){}
+  }
+
+  doc.setFontSize(14);
+  doc.text(d.bedrijf || 'Lotus Mineral Visagie', 15, y+16);
+  doc.setFontSize(9);
+  let infoY = y+22;
+  const straatline = [d.straat, d.huisnummer].filter(Boolean).join(' ');
+  const plaatsline = [d.postcode, d.plaats].filter(Boolean).join(' ');
+  if(straatline){ doc.text(straatline, 15, infoY); infoY += 5; }
+  if(plaatsline){ doc.text(plaatsline, 15, infoY); infoY += 5; }
+  const contactline = [d.email, d.telefoon].filter(Boolean).join('  |  ');
+  if(contactline){ doc.text(contactline, 15, infoY); infoY += 5; }
+
+  doc.setFontSize(16);
+  doc.text('FACTUUR', 195, 20, {align:'right'});
+  doc.setFontSize(9);
+  doc.text(d.factuurnr || '', 195, 27, {align:'right'});
+  doc.text(d.datumStr || '', 195, 32, {align:'right'});
+
+  let clientY = Math.max(infoY, 45) + 10;
+  doc.setFontSize(11);
+  doc.text(d.klantnaam || 'Klant', 15, clientY);
+  doc.setFontSize(9);
+  if(d.klantadres){ clientY += 5; doc.text(d.klantadres, 15, clientY); }
+
+  let tableY = clientY + 12;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'bold');
+  doc.text('Omschrijving', 15, tableY);
+  doc.text('Aantal', 120, tableY, {align:'right'});
+  doc.text('Prijs', 145, tableY, {align:'right'});
+  doc.text('Btw', 165, tableY, {align:'right'});
+  doc.text('Bedrag', 195, tableY, {align:'right'});
+  doc.setFont(undefined, 'normal');
+  doc.line(15, tableY+2, 195, tableY+2);
+  tableY += 8;
+
+  let grand = 0;
+  let btwTotals = {};
+  d.items.forEach(it=>{
+    const prijsIncl = it.prijs;
+    const lineTotalIncl = it.aantal * prijsIncl;
+    const prijsExcl = prijsIncl / (1 + it.btw/100);
+    const lineTotalExcl = it.aantal * prijsExcl;
+    grand += lineTotalIncl;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
+    doc.text(String(it.naam), 15, tableY);
+    doc.text(String(it.aantal), 120, tableY, {align:'right'});
+    doc.text('EUR ' + prijsIncl.toFixed(2), 145, tableY, {align:'right'});
+    doc.text(it.btw + '%', 165, tableY, {align:'right'});
+    doc.text('EUR ' + lineTotalIncl.toFixed(2), 195, tableY, {align:'right'});
+    tableY += 6;
+  });
+
+  tableY += 3;
+  doc.line(130, tableY-3, 195, tableY-3);
+  Object.keys(btwTotals).sort().forEach(rate=>{
+    doc.text('Waarvan btw ' + rate + '%', 145, tableY, {align:'right'});
+    doc.text('EUR ' + btwTotals[rate].toFixed(2), 195, tableY, {align:'right'});
+    tableY += 6;
+  });
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Totaal', 145, tableY, {align:'right'});
+  doc.text('EUR ' + grand.toFixed(2), 195, tableY, {align:'right'});
+  doc.setFont(undefined, 'normal');
+
+  let footY = 280;
+  doc.setFontSize(8);
+  let footLine = [];
+  if(d.kvk) footLine.push('KvK ' + d.kvk);
+  if(d.btwnr) footLine.push('Btw-nr ' + d.btwnr);
+  if(footLine.length) doc.text(footLine.join('   |   '), 15, footY);
+  if(d.iban) doc.text('IBAN: ' + d.iban, 15, footY+5);
+
+  return doc;
+}
+
+function downloadFactuurPDF(){
+  if(!currentInvoicePDFBlob){ alert('Er is nog geen factuur om te downloaden.'); return; }
+  const url = URL.createObjectURL(currentInvoicePDFBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = currentInvoicePDFName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function mailFactuur(){
+  if(!currentInvoicePDFBlob){ alert('Er is nog geen factuur om te versturen.'); return; }
+  const file = new File([currentInvoicePDFBlob], currentInvoicePDFName, {type:'application/pdf'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({
+        files: [file],
+        title: 'Factuur ' + currentInvoiceMeta.nr,
+        text: 'Factuur ' + currentInvoiceMeta.nr + ' voor e-Boekhouden. Verstuur naar 1771595herken@e-boekhouden.nl'
+      });
+      return;
+    }catch(err){
+      if(err && err.name === 'AbortError') return;
+    }
+  }
+  downloadFactuurPDF();
   const onderwerp = 'Factuur ' + currentInvoiceMeta.nr + ' - ' + currentInvoiceMeta.klant;
-  const body = 'Hierbij factuur ' + currentInvoiceMeta.nr + '. Voeg de zojuist opgeslagen PDF toe als bijlage voordat je verzendt.';
+  const body = 'Hierbij factuur ' + currentInvoiceMeta.nr + '. Voeg de zojuist gedownloade PDF toe als bijlage voordat je verzendt.';
   const link = 'mailto:1771595herken@e-boekhouden.nl?subject=' + encodeURIComponent(onderwerp) + '&body=' + encodeURIComponent(body);
   window.location.href = link;
 }
@@ -804,17 +918,30 @@ async function genereerFactuur(){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('invoiceview').style.display = 'block';
   document.getElementById('backbtn').style.display = 'block';
+  document.getElementById('downloadbtn').style.display = 'block';
   document.getElementById('mailbtn').style.display = 'block';
   document.querySelector('.tabs').style.display = 'none';
   currentInvoiceMeta = {nr: factuurnr, klant: klantnaam};
 
+  const datumStr = datum ? new Date(datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
+  const pdfDoc = buildInvoicePDF({
+    bedrijf: settings.bedrijf, straat: settings.straat, huisnummer: settings.huisnummer,
+    postcode: settings.postcode, plaats: settings.plaats, email: settings.email,
+    telefoon: settings.telefoon, kvk: settings.kvk, btwnr: settings.btwnr,
+    iban: settings.iban, logo: settings.logo,
+    factuurnr: factuurnr, datumStr: datumStr,
+    klantnaam: klantnaam, klantadres: klantadres, items: items
+  });
+  currentInvoicePDFBlob = pdfDoc.output('blob');
+  currentInvoicePDFName = 'Factuur-' + factuurnr + '.pdf';
+
   renderInvoiceList();
-  window.print();
 }
 
 function terugNaarFormulier(){
   document.getElementById('invoiceview').style.display = 'none';
   document.getElementById('backbtn').style.display = 'none';
+  document.getElementById('downloadbtn').style.display = 'none';
   document.getElementById('mailbtn').style.display = 'none';
   document.querySelector('.tabs').style.display = 'flex';
   document.getElementById('panel-nieuw').classList.add('active');
@@ -902,10 +1029,22 @@ function herprintFactuur(idx){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('invoiceview').style.display = 'block';
   document.getElementById('backbtn').style.display = 'block';
+  document.getElementById('downloadbtn').style.display = 'block';
   document.getElementById('mailbtn').style.display = 'block';
   document.querySelector('.tabs').style.display = 'none';
   currentInvoiceMeta = {nr: inv.nr, klant: inv.klant};
-  window.print();
+
+  const datumStr2 = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
+  const pdfDoc2 = buildInvoicePDF({
+    bedrijf: s.bedrijf, straat: s.straat, huisnummer: s.huisnummer,
+    postcode: s.postcode, plaats: s.plaats, email: s.email,
+    telefoon: s.telefoon, kvk: s.kvk, btwnr: s.btwnr,
+    iban: s.iban, logo: s.logo,
+    factuurnr: inv.nr, datumStr: datumStr2,
+    klantnaam: inv.klant, klantadres: inv.klantadres, items: inv.items
+  });
+  currentInvoicePDFBlob = pdfDoc2.output('blob');
+  currentInvoicePDFName = 'Factuur-' + inv.nr + '.pdf';
 }
 
 document.querySelectorAll('.tab').forEach(tab=>{
