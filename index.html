@@ -534,13 +534,16 @@ function handleExcelImport(event){
         return;
       }
       const keys = Object.keys(rows[0]);
-      const findKey = (options)=> keys.find(k => options.includes(k.toString().trim().toLowerCase()));
-      const naamKey = findKey(['naam','product','productnaam','omschrijving','item']);
-      const prijsKey = findKey(['prijs','price','bedrag','prijs per stuk']);
-      const btwKey = findKey(['btw','btw%','btw %','vat']);
+      const findKey = (options)=> keys.find(k => {
+        const lower = k.toString().trim().toLowerCase();
+        return options.some(opt => lower.includes(opt));
+      });
+      const naamKey = findKey(['naam','product','omschrijving','item','artikel']);
+      const prijsKey = findKey(['prijs','price','bedrag']);
+      const btwKey = findKey(['btw','vat']);
 
       if(!naamKey || !prijsKey){
-        statusEl.textContent = 'Kon geen kolom voor naam en/of prijs vinden. Controleer de kolomkoppen in je Excel-bestand.';
+        statusEl.textContent = 'Kon geen kolom voor naam en/of prijs vinden. Gevonden kolommen: ' + keys.join(', ');
         return;
       }
       let toegevoegd = 0;
@@ -561,7 +564,7 @@ function handleExcelImport(event){
       renderQuickManage();
       statusEl.textContent = toegevoegd + ' product(en) toegevoegd.';
     }catch(err){
-      statusEl.textContent = 'Dit bestand kon niet worden gelezen. Controleer of het een geldig Excel- of CSV-bestand is.';
+      statusEl.textContent = 'Dit bestand kon niet worden gelezen (' + (err && err.message ? err.message : 'onbekende fout') + '). Controleer of het een geldig Excel- of CSV-bestand is.';
     }
   };
   reader.readAsArrayBuffer(file);
@@ -971,13 +974,31 @@ function renderInvoiceList(){
     const datumStr = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL') : '';
     row.innerHTML = '<div><strong>'+inv.nr+'</strong> \u2014 '+inv.klant+
       '<div class="invoicelist-meta">'+datumStr+' \u00B7 '+fmt(inv.totaal)+'</div></div>';
+    const btnWrap = document.createElement('div');
+    btnWrap.style.display = 'flex';
+    btnWrap.style.gap = '6px';
     const btn = document.createElement('button');
     btn.className = 'smallbtn';
     btn.textContent = 'Bekijk / print';
     btn.onclick = ()=> herprintFactuur(idx);
-    row.appendChild(btn);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'smallbtn';
+    delBtn.textContent = 'Verwijderen';
+    delBtn.onclick = ()=> deleteInvoice(idx);
+    btnWrap.appendChild(btn);
+    btnWrap.appendChild(delBtn);
+    row.appendChild(btnWrap);
     wrap.appendChild(row);
   });
+}
+
+async function deleteInvoice(idx){
+  const inv = invoices[idx];
+  const bevestigd = confirm('Factuur ' + inv.nr + ' (' + inv.klant + ') verwijderen? Dit kan niet ongedaan worden gemaakt.');
+  if(!bevestigd) return;
+  invoices.splice(idx, 1);
+  try{ await storage.set('invoices', JSON.stringify(invoices)); }catch(e){}
+  renderInvoiceList();
 }
 
 function herprintFactuur(idx){
