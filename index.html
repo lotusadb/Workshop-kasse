@@ -591,13 +591,32 @@ function handleExcelImport(event){
   reader.readAsArrayBuffer(file);
 }
 
-function buildInvoicePDF(d){
+function getImageSize(dataUrl){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=> resolve({w: img.naturalWidth, h: img.naturalHeight});
+    img.onerror = ()=> resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+async function buildInvoicePDF(d){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'mm', format:'a4'});
   let y = 20;
 
   if(d.logo){
-    try{ doc.addImage(d.logo, 'JPEG', 15, y-8, 40, 16, undefined, 'FAST'); }catch(e){}
+    try{
+      const size = await getImageSize(d.logo);
+      const maxW = 40, maxH = 16;
+      let w = maxW, h = maxH;
+      if(size && size.w && size.h){
+        const scale = Math.min(maxW/size.w, maxH/size.h);
+        w = size.w * scale;
+        h = size.h * scale;
+      }
+      doc.addImage(d.logo, 'JPEG', 15, y-8, w, h, undefined, 'FAST');
+    }catch(e){}
   }
 
   doc.setFontSize(14);
@@ -983,7 +1002,7 @@ async function genereerFactuur(){
   currentInvoiceMeta = {nr: factuurnr, klant: klantnaam};
 
   const datumStr = datum ? new Date(datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
-  const pdfDoc = buildInvoicePDF({
+  const pdfDoc = await buildInvoicePDF({
     bedrijf: settings.bedrijf, straat: settings.straat, huisnummer: settings.huisnummer,
     postcode: settings.postcode, plaats: settings.plaats, email: settings.email,
     telefoon: settings.telefoon, kvk: settings.kvk, btwnr: settings.btwnr,
@@ -1057,7 +1076,7 @@ async function deleteInvoice(idx){
   renderInvoiceList();
 }
 
-function herprintFactuur(idx){
+async function herprintFactuur(idx){
   const inv = invoices[idx];
   const s = inv.bedrijfSnapshot || settings;
   const ivLogo2 = document.getElementById('iv-logo');
@@ -1112,7 +1131,7 @@ function herprintFactuur(idx){
   currentInvoiceMeta = {nr: inv.nr, klant: inv.klant};
 
   const datumStr2 = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
-  const pdfDoc2 = buildInvoicePDF({
+  const pdfDoc2 = await buildInvoicePDF({
     bedrijf: s.bedrijf, straat: s.straat, huisnummer: s.huisnummer,
     postcode: s.postcode, plaats: s.plaats, email: s.email,
     telefoon: s.telefoon, kvk: s.kvk, btwnr: s.btwnr,
