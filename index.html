@@ -289,7 +289,11 @@
       <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" (incl. btw) en eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
       <div id="import-status"></div>
 
-      <div id="quickmanage" style="margin-top:14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+        <span style="font-size:12px;color:var(--ink-soft);font-weight:700;">Huidige lijst</span>
+        <button class="smallbtn" onclick="removeAllQuickItems()" style="color:var(--danger);border-color:var(--danger);">Alles verwijderen</button>
+      </div>
+      <div id="quickmanage" style="margin-top:10px;"></div>
       <div class="additem" style="grid-template-columns:2fr 90px 70px 34px;">
         <div>
           <label>Naam</label>
@@ -764,6 +768,16 @@ async function addQuickItem(){
 
 async function removeQuickItem(idx){
   quickItems.splice(idx,1);
+  await storage.set('quickitems', JSON.stringify(quickItems));
+  renderQuickItems();
+  renderQuickManage();
+}
+
+async function removeAllQuickItems(){
+  if(quickItems.length===0){ return; }
+  const bevestigd = confirm('Alle ' + quickItems.length + ' snelle items verwijderen? Dit kan niet ongedaan worden gemaakt.');
+  if(!bevestigd) return;
+  quickItems = [];
   await storage.set('quickitems', JSON.stringify(quickItems));
   renderQuickItems();
   renderQuickManage();
