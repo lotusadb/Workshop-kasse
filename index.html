@@ -551,22 +551,26 @@ function handleExcelImport(event){
         return;
       }
       let toegevoegd = 0;
+      let bijgewerkt = 0;
       rows.forEach(row=>{
         const naam = String(row[naamKey]).trim();
         const prijs = parseFloat(String(row[prijsKey]).replace(',','.'));
         const btw = btwKey ? (parseInt(String(row[btwKey]).replace('%','')) || 21) : 21;
         if(naam && !isNaN(prijs)){
-          const bestaatAl = quickItems.some(qi => qi.naam.toLowerCase() === naam.toLowerCase());
-          if(!bestaatAl){
+          const bestaandeIdx = quickItems.findIndex(qi => qi.naam.toLowerCase() === naam.toLowerCase());
+          if(bestaandeIdx === -1){
             quickItems.push({naam, prijs, btw});
             toegevoegd++;
+          }else{
+            quickItems[bestaandeIdx] = {naam, prijs, btw};
+            bijgewerkt++;
           }
         }
       });
       await storage.set('quickitems', JSON.stringify(quickItems));
       renderQuickItems();
       renderQuickManage();
-      statusEl.textContent = toegevoegd + ' product(en) toegevoegd.';
+      statusEl.textContent = toegevoegd + ' product(en) toegevoegd, ' + bijgewerkt + ' bijgewerkt.';
     }catch(err){
       statusEl.textContent = 'Dit bestand kon niet worden gelezen (' + (err && err.message ? err.message : 'onbekende fout') + '). Controleer of het een geldig Excel- of CSV-bestand is.';
     }
