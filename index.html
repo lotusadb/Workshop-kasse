@@ -164,7 +164,20 @@
 
     <div class="card">
       <h2>Items toevoegen</h2>
-      <div class="quickgrid" id="quickitems"></div>
+
+      <label>Kies uit je artikellijst</label>
+      <div style="display:grid;grid-template-columns:1fr 70px 90px;gap:8px;align-items:end;">
+        <div>
+          <input id="quick-search" list="quick-datalist" placeholder="Typ om te zoeken...">
+          <datalist id="quick-datalist"></datalist>
+        </div>
+        <div>
+          <input id="quick-aantal" type="number" min="1" value="1">
+        </div>
+        <button class="btn btn-secondary" style="margin-top:0;" onclick="addFromDropdown()">Toevoegen</button>
+      </div>
+
+      <div class="quickgrid" id="quickitems" style="margin-top:14px;"></div>
 
       <div class="additem">
         <div>
@@ -727,13 +740,39 @@ function nextFactuurNummer(){
 function renderQuickItems(){
   const wrap = document.getElementById('quickitems');
   wrap.innerHTML = '';
-  quickItems.forEach((qi, idx)=>{
-    const b = document.createElement('button');
-    b.className = 'quickbtn';
-    b.textContent = qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2);
-    b.onclick = ()=> addItem(qi.naam, 1, qi.prijs, qi.btw);
-    wrap.appendChild(b);
+  if(quickItems.length <= 24){
+    quickItems.forEach((qi, idx)=>{
+      const b = document.createElement('button');
+      b.className = 'quickbtn';
+      b.textContent = qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2);
+      b.onclick = ()=> addItem(qi.naam, 1, qi.prijs, qi.btw);
+      wrap.appendChild(b);
+    });
+  }
+
+  const datalist = document.getElementById('quick-datalist');
+  datalist.innerHTML = '';
+  const sorted = [...quickItems].sort((a,b)=> a.naam.localeCompare(b.naam, 'nl'));
+  sorted.forEach(qi=>{
+    const opt = document.createElement('option');
+    opt.value = qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2);
+    datalist.appendChild(opt);
   });
+}
+
+function addFromDropdown(){
+  const input = document.getElementById('quick-search');
+  const aantal = parseInt(document.getElementById('quick-aantal').value) || 1;
+  const typed = input.value.trim();
+  const match = quickItems.find(qi => (qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2)) === typed)
+    || quickItems.find(qi => qi.naam.toLowerCase() === typed.toLowerCase());
+  if(!match){
+    alert('Geen artikel gevonden met die naam. Kies een artikel uit de lijst.');
+    return;
+  }
+  addItem(match.naam, aantal, match.prijs, match.btw);
+  input.value = '';
+  document.getElementById('quick-aantal').value = '1';
 }
 
 function renderQuickManage(){
