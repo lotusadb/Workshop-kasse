@@ -540,7 +540,11 @@ function handleExcelImport(event){
       });
       const naamKey = findKey(['naam','product','omschrijving','item','artikel']);
       const prijsKey = findKey(['prijs','price','bedrag']);
-      const btwKey = findKey(['btw','vat']);
+      const btwKey = keys.find(k => {
+        if(k === naamKey || k === prijsKey) return false;
+        const lower = k.toString().trim().toLowerCase();
+        return ['btw','vat'].some(opt => lower.includes(opt));
+      });
 
       if(!naamKey || !prijsKey){
         statusEl.textContent = 'Kon geen kolom voor naam en/of prijs vinden. Gevonden kolommen: ' + keys.join(', ');
