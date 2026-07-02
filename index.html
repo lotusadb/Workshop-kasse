@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workshop kassa - Lotus Mineral Visagie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --porcelain:#FBF8F4;
+    --sand:#EFE6D8;
+    --clay:#8C4A54;
+    --clay-dark:#6E3941;
+    --sage:#7C8B6F;
+    --sage-dark:#5E6B53;
+    --ink:#33302C;
+    --ink-soft:#6B655C;
+    --gold:#C6A567;
+    --line:#E4DACB;
+    --white:#FFFFFF;
+    --danger:#B3453F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--porcelain);
+    font-family:'Karla',sans-serif;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:760px;margin:0 auto;padding:20px 16px 80px;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:600;margin:0;}
+  .brandbar{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding-bottom:14px;margin-bottom:18px;border-bottom:1px solid var(--line);
+  }
+  .brandbar h1{font-size:26px;color:var(--clay-dark);letter-spacing:.2px;}
+  .brandbar span{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:1px;}
+  .tabs{display:flex;gap:6px;margin-bottom:20px;}
+  .tab{
+    flex:1;text-align:center;padding:10px 6px;border-radius:10px;
+    border:1px solid var(--line);background:var(--white);
+    font-size:13px;font-weight:700;color:var(--ink-soft);cursor:pointer;
+    letter-spacing:.3px;
+  }
+  .tab.active{background:var(--clay);border-color:var(--clay);color:var(--white);}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{
+    background:var(--white);border:1px solid var(--line);border-radius:14px;
+    padding:18px 18px 20px;margin-bottom:16px;
+  }
+  .card h2{font-size:19px;color:var(--clay-dark);margin-bottom:12px;}
+  label{display:block;font-size:12px;color:var(--ink-soft);margin:10px 0 4px;font-weight:700;letter-spacing:.2px;}
+  input,select,textarea{
+    width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+    font-family:'Karla',sans-serif;font-size:14px;background:var(--porcelain);color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--sage);background:var(--white);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
+  .quickgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .quickbtn{
+    padding:9px 14px;border-radius:20px;border:1px solid var(--sage);
+    background:#F2F4EE;color:var(--sage-dark);font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .quickbtn:active{transform:scale(.97);}
+  .additem{
+    display:grid;grid-template-columns:2fr 60px 80px 70px 34px;gap:8px;align-items:end;
+    margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);
+  }
+  .additem label{margin-top:0;}
+  .iconbtn{
+    width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--porcelain);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--ink-soft);
+  }
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px;}
+  th{text-align:left;font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;
+     padding:6px 4px;border-bottom:1px solid var(--line);}
+  td{padding:9px 4px;border-bottom:1px solid var(--line);}
+  td.num{text-align:right;white-space:nowrap;}
+  .rmbtn{background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 6px;}
+  .totals{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .totalrow{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;color:var(--ink-soft);}
+  .totalrow.grand{font-size:19px;font-weight:700;color:var(--clay-dark);padding-top:8px;font-family:'Cormorant Garamond',serif;}
+  .btn{
+    display:inline-block;width:100%;text-align:center;padding:13px;border-radius:10px;border:none;
+    font-family:'Karla',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;letter-spacing:.2px;
+  }
+  .btn-primary{background:var(--clay);color:var(--white);}
+  .btn-primary:active{background:var(--clay-dark);}
+  .btn-secondary{background:var(--white);color:var(--ink);border:1px solid var(--line);}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5;}
+  .empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:30px 10px;}
+  .invoicelist-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 4px;border-bottom:1px solid var(--line);font-size:14px;
+  }
+  .invoicelist-item:last-child{border-bottom:none;}
+  .invoicelist-meta{color:var(--ink-soft);font-size:12px;margin-top:2px;}
+  .smallbtn{
+    padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--porcelain);
+    font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;
+  }
+  .savedtick{color:var(--sage-dark);font-size:12px;font-weight:700;margin-left:8px;opacity:0;transition:opacity .2s;}
+  .savedtick.show{opacity:1;}
+
+  #invoiceview{display:none;}
+  .inv-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;}
+  .inv-brand h2{font-size:24px;color:var(--clay-dark);}
+  .inv-brand p{margin:2px 0;font-size:13px;color:var(--ink-soft);}
+  .inv-title{text-align:right;}
+  .inv-title h3{font-size:20px;color:var(--ink);letter-spacing:1px;text-transform:uppercase;}
+  .inv-title p{margin:2px 0;font-size:13px;color:var(--ink-soft);}
+  .inv-to{margin-bottom:24px;font-size:13px;}
+  .inv-to strong{display:block;font-size:14px;margin-bottom:2px;}
+  .inv-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .inv-table th{border-bottom:2px solid var(--ink);text-transform:none;letter-spacing:0;font-size:12px;padding:6px 4px;}
+  .inv-table td{padding:8px 4px;border-bottom:1px solid var(--line);}
+  .inv-foot{margin-top:20px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:14px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #invoiceview, #invoiceview *{visibility:visible;}
+    #invoiceview{display:block !important;position:absolute;top:0;left:0;width:100%;padding:20px;}
+    .noprint{display:none !important;}
+  }
+</style>
+<div class="app">
+
+  <div class="brandbar">
+    <h1>Lotus Mineral Visagie</h1>
+    <span>Workshop kassa</span>
+  </div>
+
+  <div class="tabs noprint">
+    <div class="tab active" data-tab="nieuw">Nieuwe bestelling</div>
+    <div class="tab" data-tab="facturen">Facturen</div>
+    <div class="tab" data-tab="instellingen">Instellingen</div>
+  </div>
+
+  <div class="panel active" id="panel-nieuw">
+    <div class="card">
+      <h2>Klantgegevens</h2>
+      <div class="row2">
+        <div>
+          <label>Naam klant</label>
+          <input id="klant-naam" placeholder="Voor- en achternaam">
+        </div>
+        <div>
+          <label>E-mail (optioneel)</label>
+          <input id="klant-email" placeholder="naam@voorbeeld.nl">
+        </div>
+      </div>
+      <label>Adres (optioneel)</label>
+      <input id="klant-adres" placeholder="Straat, postcode en plaats">
+    </div>
+
+    <div class="card">
+      <h2>Items toevoegen</h2>
+      <div class="quickgrid" id="quickitems"></div>
+
+      <div class="additem">
+        <div>
+          <label>Eigen item</label>
+          <input id="new-naam" placeholder="Bijv. Foundation mineraal">
+        </div>
+        <div>
+          <label>Aantal</label>
+          <input id="new-aantal" type="number" min="1" value="1">
+        </div>
+        <div>
+          <label>Prijs p/s (&#8364;)</label>
+          <input id="new-prijs" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label>Btw %</label>
+          <select id="new-btw">
+            <option value="21">21%</option>
+            <option value="9">9%</option>
+            <option value="0">0%</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="iconbtn" onclick="addCustomItem()" title="Toevoegen">+</button>
+        </div>
+      </div>
+
+      <table id="itemtable" style="display:none;">
+        <thead>
+          <tr><th>Item</th><th>Aantal</th><th>Prijs</th><th>Btw</th><th></th><th></th></tr>
+        </thead>
+        <tbody id="itemrows"></tbody>
+      </table>
+      <div class="empty" id="itemempty">Nog geen items toegevoegd</div>
+
+      <div class="totals" id="totalsblock" style="display:none;">
+        <div id="btwrows"></div>
+        <div class="totalrow grand"><span>Totaal</span><span id="grandtotal">&#8364; 0,00</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Factuurgegevens</h2>
+      <div class="row2">
+        <div>
+          <label>Factuurnummer</label>
+          <input id="factuurnr" placeholder="wordt automatisch ingevuld">
+        </div>
+        <div>
+          <label>Datum</label>
+          <input id="factuurdatum" type="date">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="genereerFactuur()">Factuur maken</button>
+      <p class="hint">Dit maakt een printbare factuur die je direct kan printen of als PDF opslaan (kies "Opslaan als PDF" in het printvenster). Volledig gratis, geen account nodig.</p>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-facturen">
+    <div class="card">
+      <h2>Eerdere facturen</h2>
+      <button class="btn btn-secondary noprint" onclick="exportCSV()" style="margin-top:0;">Exporteer voor boekhouding (CSV)</button>
+      <p class="hint">Een CSV-bestand met alle factuurregels (datum, klant, omschrijving, bedragen, btw). Dit kan je inlezen of overtypen in e-Boekhouden.</p>
+      <div id="invoicelist"><div class="empty">Nog geen facturen gemaakt</div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-instellingen">
+    <div class="card">
+      <h2>Bedrijfsgegevens</h2>
+      <p class="hint">Deze gegevens worden onthouden en automatisch op elke factuur gezet.</p>
+      <label>Logo</label>
+      <input type="file" id="s-logo" accept="image/*" onchange="handleLogoUpload(event)">
+      <div id="logo-preview" style="margin-top:10px;"></div>
+      <label>Bedrijfsnaam</label>
+      <input id="s-bedrijf" placeholder="Lotus Mineral Visagie">
+      <label>Adres</label>
+      <input id="s-adres" placeholder="Straatnaam 12">
+      <div class="row2">
+        <div>
+          <label>Postcode</label>
+          <input id="s-postcode" placeholder="4116 AB">
+        </div>
+        <div>
+          <label>Plaats</label>
+          <input id="s-plaats" placeholder="Beusichem">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label>KvK-nummer</label>
+          <input id="s-kvk" placeholder="12345678">
+        </div>
+        <div>
+          <label>Btw-nummer</label>
+          <input id="s-btwnr" placeholder="NL000000000B00">
+        </div>
+      </div>
+      <label>IBAN</label>
+      <input id="s-iban" placeholder="NL00 BANK 0000 0000 00">
+      <div class="row2">
+        <div>
+          <label>E-mail</label>
+          <input id="s-email" placeholder="info@lotusmineralvisagie.nl">
+        </div>
+        <div>
+          <label>Telefoon</label>
+          <input id="s-telefoon" placeholder="06-12345678">
+        </div>
+      </div>
+      <label>Factuurnummer voorvoegsel</label>
+      <input id="s-prefix" placeholder="LMV-2026-">
+      <label>Volgend factuurnummer (teller)</label>
+      <input id="s-teller" type="number" min="1" value="1">
+      <button class="btn btn-primary" onclick="saveSettings()">Opslaan</button>
+      <span class="savedtick" id="savedtick">Opgeslagen</span>
+    </div>
+
+    <div class="card">
+      <h2>Snelle items beheren</h2>
+      <p class="hint">Producten en workshops die je vaak verkoopt, zodat je ze tijdens de workshop met &#233;&#233;n tik kan toevoegen.</p>
+
+      <label>Producten importeren vanuit Excel</label>
+      <input type="file" id="excel-import" accept=".xlsx,.xls,.csv" onchange="handleExcelImport(event)">
+      <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" en eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
+      <div id="import-status"></div>
+
+      <div id="quickmanage" style="margin-top:14px;"></div>
+      <div class="additem" style="grid-template-columns:2fr 90px 70px 34px;">
+        <div>
+          <label>Naam</label>
+          <input id="qi-naam" placeholder="Bijv. Workshop minerale make-up">
+        </div>
+        <div>
+          <label>Prijs (&#8364;)</label>
+          <input id="qi-prijs" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label>Btw %</label>
+          <select id="qi-btw">
+            <option value="21">21%</option>
+            <option value="9">9%</option>
+            <option value="0">0%</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="iconbtn" onclick="addQuickItem()">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="invoiceview">
+    <div class="inv-head">
+      <div class="inv-brand">
+        <img id="iv-logo" style="max-height:56px;max-width:220px;display:none;margin-bottom:8px;">
+        <h2 id="iv-bedrijf"></h2>
+        <p id="iv-adres"></p>
+        <p id="iv-postplaats"></p>
+        <p id="iv-contact"></p>
+      </div>
+      <div class="inv-title">
+        <h3>Factuur</h3>
+        <p><strong id="iv-nr"></strong></p>
+        <p id="iv-datum"></p>
+      </div>
+    </div>
+    <div class="inv-to">
+      <strong id="iv-klantnaam"></strong>
+      <span id="iv-klantadres"></span>
+    </div>
+    <table class="inv-table">
+      <thead>
+        <tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Btw</th><th style="text-align:right;">Bedrag</th></tr>
+      </thead>
+      <tbody id="iv-rows"></tbody>
+    </table>
+    <div class="totals">
+      <div id="iv-btwrows"></div>
+      <div class="totalrow grand"><span>Totaal</span><span id="iv-totaal"></span></div>
+    </div>
+    <div class="inv-foot">
+      <p id="iv-kvkbtw"></p>
+      <p id="iv-ibanline"></p>
+    </div>
+  </div>
+
+  <div class="noprint" style="display:flex;gap:8px;">
+    <button class="btn btn-secondary" id="backbtn" style="display:none;" onclick="terugNaarFormulier()">&#8592; Terug naar bestelling</button>
+    <button class="btn btn-primary" id="mailbtn" style="display:none;" onclick="mailFactuur()">Mail naar e-Boekhouden</button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const storage = {
+  async get(key){
+    const v = localStorage.getItem('lmv_'+key);
+    if(v === null) return null;
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem('lmv_'+key, value);
+    return {key, value};
+  }
+};
+let items = [];
+let currentInvoiceMeta = {nr:'', klant:''};
+let settings = {};
+let quickItems = [];
+let invoices = [];
+
+async function loadAll(){
+  try{
+    const r = await storage.get('settings');
+    settings = r ? JSON.parse(r.value) : {};
+  }catch(e){ settings = {}; }
+  try{
+    const r = await storage.get('quickitems');
+    quickItems = r ? JSON.parse(r.value) : defaultQuickItems();
+  }catch(e){ quickItems = defaultQuickItems(); }
+  try{
+    const r = await storage.get('invoices');
+    invoices = r ? JSON.parse(r.value) : [];
+  }catch(e){ invoices = []; }
+  applySettingsToForm();
+  renderLogoPreview();
+  renderQuickItems();
+  renderQuickManage();
+  renderInvoiceList();
+  document.getElementById('factuurdatum').valueAsDate = new Date();
+  document.getElementById('factuurnr').value = nextFactuurNummer();
+}
+
+function defaultQuickItems(){
+  return [
+    {naam:'Workshop minerale make-up', prijs:45, btw:21},
+    {naam:'Mintenz Foundation', prijs:32.5, btw:21},
+    {naam:'Revitaltrax Serum', prijs:38, btw:21},
+    {naam:'Kwastenset mineraal', prijs:24.5, btw:21}
+  ];
+}
+
+function applySettingsToForm(){
+  document.getElementById('s-bedrijf').value = settings.bedrijf || 'Lotus Mineral Visagie';
+  document.getElementById('s-adres').value = settings.adres || '';
+  document.getElementById('s-postcode').value = settings.postcode || '';
+  document.getElementById('s-plaats').value = settings.plaats || 'Beusichem';
+  document.getElementById('s-kvk').value = settings.kvk || '';
+  document.getElementById('s-btwnr').value = settings.btwnr || '';
+  document.getElementById('s-iban').value = settings.iban || '';
+  document.getElementById('s-email').value = settings.email || '';
+  document.getElementById('s-telefoon').value = settings.telefoon || '';
+  document.getElementById('s-prefix').value = settings.prefix || 'LMV-2026-';
+  document.getElementById('s-teller').value = settings.teller || 1;
+}
+
+async function saveSettings(){
+  settings = {
+    bedrijf: document.getElementById('s-bedrijf').value,
+    adres: document.getElementById('s-adres').value,
+    postcode: document.getElementById('s-postcode').value,
+    plaats: document.getElementById('s-plaats').value,
+    kvk: document.getElementById('s-kvk').value,
+    btwnr: document.getElementById('s-btwnr').value,
+    iban: document.getElementById('s-iban').value,
+    email: document.getElementById('s-email').value,
+    telefoon: document.getElementById('s-telefoon').value,
+    prefix: document.getElementById('s-prefix').value,
+    teller: parseInt(document.getElementById('s-teller').value) || 1
+  };
+  try{
+    await storage.set('settings', JSON.stringify(settings));
+    const tick = document.getElementById('savedtick');
+    tick.classList.add('show');
+    setTimeout(()=>tick.classList.remove('show'), 2000);
+    document.getElementById('factuurnr').value = nextFactuurNummer();
+  }catch(e){ alert('Opslaan mislukt, probeer het opnieuw.'); }
+}
+
+function renderLogoPreview(){
+  const wrap = document.getElementById('logo-preview');
+  wrap.innerHTML = '';
+  if(settings.logo){
+    const img = document.createElement('img');
+    img.src = settings.logo;
+    img.style.maxHeight = '60px';
+    img.style.maxWidth = '200px';
+    img.style.display = 'block';
+    img.style.marginBottom = '8px';
+    wrap.appendChild(img);
+    const rm = document.createElement('button');
+    rm.className = 'smallbtn';
+    rm.textContent = 'Logo verwijderen';
+    rm.onclick = removeLogo;
+    wrap.appendChild(rm);
+  }
+}
+
+function handleLogoUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 1500000){
+    alert('Dit logo is groot. Kies bij voorkeur een kleiner bestand (bijv. onder 1 MB) voor snellere facturen.');
+  }
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    settings.logo = e.target.result;
+    try{ await storage.set('settings', JSON.stringify(settings)); }catch(err){}
+    renderLogoPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removeLogo(){
+  delete settings.logo;
+  try{ await storage.set('settings', JSON.stringify(settings)); }catch(err){}
+  renderLogoPreview();
+  document.getElementById('s-logo').value = '';
+}
+
+function handleExcelImport(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('import-status');
+  statusEl.textContent = 'Bestand wordt gelezen...';
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      if(rows.length === 0){
+        statusEl.textContent = 'Geen rijen gevonden in dit bestand.';
+        return;
+      }
+      const keys = Object.keys(rows[0]);
+      const findKey = (options)=> keys.find(k => options.includes(k.toString().trim().toLowerCase()));
+      const naamKey = findKey(['naam','product','productnaam','omschrijving','item']);
+      const prijsKey = findKey(['prijs','price','bedrag','prijs per stuk']);
+      const btwKey = findKey(['btw','btw%','btw %','vat']);
+
+      if(!naamKey || !prijsKey){
+        statusEl.textContent = 'Kon geen kolom voor naam en/of prijs vinden. Controleer de kolomkoppen in je Excel-bestand.';
+        return;
+      }
+      let toegevoegd = 0;
+      rows.forEach(row=>{
+        const naam = String(row[naamKey]).trim();
+        const prijs = parseFloat(String(row[prijsKey]).replace(',','.'));
+        const btw = btwKey ? (parseInt(String(row[btwKey]).replace('%','')) || 21) : 21;
+        if(naam && !isNaN(prijs)){
+          const bestaatAl = quickItems.some(qi => qi.naam.toLowerCase() === naam.toLowerCase());
+          if(!bestaatAl){
+            quickItems.push({naam, prijs, btw});
+            toegevoegd++;
+          }
+        }
+      });
+      await storage.set('quickitems', JSON.stringify(quickItems));
+      renderQuickItems();
+      renderQuickManage();
+      statusEl.textContent = toegevoegd + ' product(en) toegevoegd.';
+    }catch(err){
+      statusEl.textContent = 'Dit bestand kon niet worden gelezen. Controleer of het een geldig Excel- of CSV-bestand is.';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function mailFactuur(){
+  const onderwerp = 'Factuur ' + currentInvoiceMeta.nr + ' - ' + currentInvoiceMeta.klant;
+  const body = 'Hierbij factuur ' + currentInvoiceMeta.nr + '. Voeg de zojuist opgeslagen PDF toe als bijlage voordat je verzendt.';
+  const link = 'mailto:1771595herken@e-boekhouden.nl?subject=' + encodeURIComponent(onderwerp) + '&body=' + encodeURIComponent(body);
+  window.location.href = link;
+}
+
+function exportCSV(){
+  if(invoices.length===0){ alert('Er zijn nog geen facturen om te exporteren.'); return; }
+  let lines = ['Datum;Factuurnummer;Klant;Omschrijving;Aantal;Prijs excl btw;Btw %;Bedrag incl btw'];
+  invoices.forEach(inv=>{
+    const datumStr = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL') : '';
+    inv.items.forEach(it=>{
+      const inclBtw = it.aantal * it.prijs * (1 + it.btw/100);
+      lines.push([
+        datumStr, inv.nr, inv.klant, it.naam.replace(/;/g,','), it.aantal,
+        it.prijs.toFixed(2).replace('.',','), it.btw, inclBtw.toFixed(2).replace('.',',')
+      ].join(';'));
+    });
+  });
+  const csv = lines.join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'facturen-export.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function nextFactuurNummer(){
+  const prefix = settings.prefix || 'LMV-2026-';
+  const teller = settings.teller || 1;
+  return prefix + String(teller).padStart(3,'0');
+}
+
+function renderQuickItems(){
+  const wrap = document.getElementById('quickitems');
+  wrap.innerHTML = '';
+  quickItems.forEach((qi, idx)=>{
+    const b = document.createElement('button');
+    b.className = 'quickbtn';
+    b.textContent = qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2);
+    b.onclick = ()=> addItem(qi.naam, 1, qi.prijs, qi.btw);
+    wrap.appendChild(b);
+  });
+}
+
+function renderQuickManage(){
+  const wrap = document.getElementById('quickmanage');
+  wrap.innerHTML = '';
+  if(quickItems.length===0){
+    wrap.innerHTML = '<div class="empty">Nog geen snelle items</div>';
+    return;
+  }
+  quickItems.forEach((qi, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'invoicelist-item';
+    row.innerHTML = '<div>'+qi.naam+'<div class="invoicelist-meta">\u20AC '+qi.prijs.toFixed(2)+' \u00B7 btw '+qi.btw+'%</div></div>';
+    const btn = document.createElement('button');
+    btn.className = 'smallbtn';
+    btn.textContent = 'Verwijderen';
+    btn.onclick = ()=> removeQuickItem(idx);
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+}
+
+async function addQuickItem(){
+  const naam = document.getElementById('qi-naam').value.trim();
+  const prijs = parseFloat(document.getElementById('qi-prijs').value);
+  const btw = parseInt(document.getElementById('qi-btw').value);
+  if(!naam || isNaN(prijs)){ alert('Vul een naam en prijs in.'); return; }
+  quickItems.push({naam, prijs, btw});
+  await storage.set('quickitems', JSON.stringify(quickItems));
+  document.getElementById('qi-naam').value='';
+  document.getElementById('qi-prijs').value='';
+  renderQuickItems();
+  renderQuickManage();
+}
+
+async function removeQuickItem(idx){
+  quickItems.splice(idx,1);
+  await storage.set('quickitems', JSON.stringify(quickItems));
+  renderQuickItems();
+  renderQuickManage();
+}
+
+function addItem(naam, aantal, prijs, btw){
+  items.push({naam, aantal, prijs, btw});
+  renderItems();
+}
+
+function addCustomItem(){
+  const naam = document.getElementById('new-naam').value.trim();
+  const aantal = parseInt(document.getElementById('new-aantal').value) || 1;
+  const prijs = parseFloat(document.getElementById('new-prijs').value);
+  const btw = parseInt(document.getElementById('new-btw').value);
+  if(!naam || isNaN(prijs)){ alert('Vul een naam en prijs in.'); return; }
+  addItem(naam, aantal, prijs, btw);
+  document.getElementById('new-naam').value='';
+  document.getElementById('new-aantal').value='1';
+  document.getElementById('new-prijs').value='';
+}
+
+function removeItem(idx){
+  items.splice(idx,1);
+  renderItems();
+}
+
+function fmt(n){
+  return '\u20AC ' + n.toLocaleString('nl-NL', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function renderItems(){
+  const tbody = document.getElementById('itemrows');
+  const table = document.getElementById('itemtable');
+  const empty = document.getElementById('itemempty');
+  const totalsblock = document.getElementById('totalsblock');
+  tbody.innerHTML = '';
+  if(items.length===0){
+    table.style.display='none';
+    empty.style.display='block';
+    totalsblock.style.display='none';
+    return;
+  }
+  table.style.display='table';
+  empty.style.display='none';
+  totalsblock.style.display='block';
+
+  let btwTotals = {};
+  let grand = 0;
+  items.forEach((it, idx)=>{
+    const lineTotal = it.aantal * it.prijs;
+    grand += lineTotal;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal * (it.btw/100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+it.naam+'</td>'+
+      '<td class="num">'+it.aantal+'</td>'+
+      '<td class="num">'+fmt(it.prijs)+'</td>'+
+      '<td class="num">'+it.btw+'%</td>'+
+      '<td class="num">'+fmt(lineTotal)+'</td>'+
+      '<td></td>';
+    const rmtd = tr.querySelector('td:last-child');
+    const rmbtn = document.createElement('button');
+    rmbtn.className = 'rmbtn';
+    rmbtn.textContent = '\u2715';
+    rmbtn.onclick = ()=> removeItem(idx);
+    rmtd.appendChild(rmbtn);
+    tbody.appendChild(tr);
+  });
+
+  const btwWrap = document.getElementById('btwrows');
+  btwWrap.innerHTML='';
+  let btwSum = 0;
+  Object.keys(btwTotals).sort().forEach(rate=>{
+    btwSum += btwTotals[rate];
+    const row = document.createElement('div');
+    row.className = 'totalrow';
+    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    btwWrap.appendChild(row);
+  });
+  const subRow = document.createElement('div');
+  subRow.className = 'totalrow';
+  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
+  btwWrap.insertBefore(subRow, btwWrap.firstChild);
+
+  document.getElementById('grandtotal').textContent = fmt(grand + btwSum);
+}
+
+async function genereerFactuur(){
+  if(items.length===0){ alert('Voeg eerst items toe.'); return; }
+  const klantnaam = document.getElementById('klant-naam').value.trim() || 'Klant';
+  const klantadres = document.getElementById('klant-adres').value.trim();
+  const factuurnr = document.getElementById('factuurnr').value.trim() || nextFactuurNummer();
+  const datum = document.getElementById('factuurdatum').value;
+
+  const ivLogo = document.getElementById('iv-logo');
+  if(settings.logo){ ivLogo.src = settings.logo; ivLogo.style.display = 'block'; }
+  else{ ivLogo.style.display = 'none'; }
+  document.getElementById('iv-bedrijf').textContent = settings.bedrijf || 'Lotus Mineral Visagie';
+  document.getElementById('iv-adres').textContent = settings.adres || '';
+  document.getElementById('iv-postplaats').textContent = [settings.postcode, settings.plaats].filter(Boolean).join(' ');
+  document.getElementById('iv-contact').textContent = [settings.email, settings.telefoon].filter(Boolean).join(' \u00B7 ');
+  document.getElementById('iv-nr').textContent = factuurnr;
+  document.getElementById('iv-datum').textContent = datum ? new Date(datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
+  document.getElementById('iv-klantnaam').textContent = klantnaam;
+  document.getElementById('iv-klantadres').textContent = klantadres;
+
+  const rows = document.getElementById('iv-rows');
+  rows.innerHTML = '';
+  let btwTotals = {};
+  let grand = 0;
+  items.forEach(it=>{
+    const lineTotal = it.aantal * it.prijs;
+    grand += lineTotal;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal * (it.btw/100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
+      '<td style="text-align:right;">'+fmt(it.prijs)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
+      '<td style="text-align:right;">'+fmt(lineTotal)+'</td>';
+    rows.appendChild(tr);
+  });
+  const btwWrap = document.getElementById('iv-btwrows');
+  btwWrap.innerHTML='';
+  let btwSum=0;
+  const subRow = document.createElement('div');
+  subRow.className='totalrow';
+  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
+  btwWrap.appendChild(subRow);
+  Object.keys(btwTotals).sort().forEach(rate=>{
+    btwSum += btwTotals[rate];
+    const row = document.createElement('div');
+    row.className='totalrow';
+    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    btwWrap.appendChild(row);
+  });
+  document.getElementById('iv-totaal').textContent = fmt(grand+btwSum);
+
+  let kvkbtwLine = [];
+  if(settings.kvk) kvkbtwLine.push('KvK '+settings.kvk);
+  if(settings.btwnr) kvkbtwLine.push('Btw-nr '+settings.btwnr);
+  document.getElementById('iv-kvkbtw').textContent = kvkbtwLine.join(' \u00B7 ');
+  document.getElementById('iv-ibanline').textContent = settings.iban ? 'IBAN: '+settings.iban : '';
+
+  invoices.unshift({
+    nr: factuurnr, datum, klant: klantnaam, totaal: grand+btwSum,
+    items: JSON.parse(JSON.stringify(items)), klantadres,
+    bedrijfSnapshot: {...settings}
+  });
+  try{ await storage.set('invoices', JSON.stringify(invoices)); }catch(e){}
+
+  settings.teller = (settings.teller || 1) + 1;
+  try{ await storage.set('settings', JSON.stringify(settings)); }catch(e){}
+
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('invoiceview').style.display = 'block';
+  document.getElementById('backbtn').style.display = 'block';
+  document.getElementById('mailbtn').style.display = 'block';
+  document.querySelector('.tabs').style.display = 'none';
+  currentInvoiceMeta = {nr: factuurnr, klant: klantnaam};
+
+  renderInvoiceList();
+  window.print();
+}
+
+function terugNaarFormulier(){
+  document.getElementById('invoiceview').style.display = 'none';
+  document.getElementById('backbtn').style.display = 'none';
+  document.getElementById('mailbtn').style.display = 'none';
+  document.querySelector('.tabs').style.display = 'flex';
+  document.getElementById('panel-nieuw').classList.add('active');
+  document.querySelector('.tab[data-tab="nieuw"]').classList.add('active');
+  items = [];
+  renderItems();
+  document.getElementById('klant-naam').value='';
+  document.getElementById('klant-email').value='';
+  document.getElementById('klant-adres').value='';
+  document.getElementById('factuurdatum').valueAsDate = new Date();
+  document.getElementById('factuurnr').value = nextFactuurNummer();
+}
+
+function renderInvoiceList(){
+  const wrap = document.getElementById('invoicelist');
+  if(invoices.length===0){
+    wrap.innerHTML = '<div class="empty">Nog geen facturen gemaakt</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  invoices.forEach((inv, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'invoicelist-item';
+    const datumStr = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL') : '';
+    row.innerHTML = '<div><strong>'+inv.nr+'</strong> \u2014 '+inv.klant+
+      '<div class="invoicelist-meta">'+datumStr+' \u00B7 '+fmt(inv.totaal)+'</div></div>';
+    const btn = document.createElement('button');
+    btn.className = 'smallbtn';
+    btn.textContent = 'Bekijk / print';
+    btn.onclick = ()=> herprintFactuur(idx);
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+}
+
+function herprintFactuur(idx){
+  const inv = invoices[idx];
+  const s = inv.bedrijfSnapshot || settings;
+  const ivLogo2 = document.getElementById('iv-logo');
+  if(s.logo){ ivLogo2.src = s.logo; ivLogo2.style.display = 'block'; }
+  else{ ivLogo2.style.display = 'none'; }
+  document.getElementById('iv-bedrijf').textContent = s.bedrijf || 'Lotus Mineral Visagie';
+  document.getElementById('iv-adres').textContent = s.adres || '';
+  document.getElementById('iv-postplaats').textContent = [s.postcode, s.plaats].filter(Boolean).join(' ');
+  document.getElementById('iv-contact').textContent = [s.email, s.telefoon].filter(Boolean).join(' \u00B7 ');
+  document.getElementById('iv-nr').textContent = inv.nr;
+  document.getElementById('iv-datum').textContent = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
+  document.getElementById('iv-klantnaam').textContent = inv.klant;
+  document.getElementById('iv-klantadres').textContent = inv.klantadres || '';
+
+  const rows = document.getElementById('iv-rows');
+  rows.innerHTML='';
+  let btwTotals={}; let grand=0;
+  inv.items.forEach(it=>{
+    const lineTotal = it.aantal*it.prijs;
+    grand += lineTotal;
+    btwTotals[it.btw] = (btwTotals[it.btw]||0) + lineTotal*(it.btw/100);
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
+      '<td style="text-align:right;">'+fmt(it.prijs)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
+      '<td style="text-align:right;">'+fmt(lineTotal)+'</td>';
+    rows.appendChild(tr);
+  });
+  const btwWrap = document.getElementById('iv-btwrows');
+  btwWrap.innerHTML='';
+  let btwSum=0;
+  const subRow = document.createElement('div');
+  subRow.className='totalrow';
+  subRow.innerHTML = '<span>Subtotaal (excl. btw)</span><span>'+fmt(grand)+'</span>';
+  btwWrap.appendChild(subRow);
+  Object.keys(btwTotals).sort().forEach(rate=>{
+    btwSum += btwTotals[rate];
+    const row = document.createElement('div');
+    row.className='totalrow';
+    row.innerHTML = '<span>Btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    btwWrap.appendChild(row);
+  });
+  document.getElementById('iv-totaal').textContent = fmt(grand+btwSum);
+  let kvkbtwLine=[];
+  if(s.kvk) kvkbtwLine.push('KvK '+s.kvk);
+  if(s.btwnr) kvkbtwLine.push('Btw-nr '+s.btwnr);
+  document.getElementById('iv-kvkbtw').textContent = kvkbtwLine.join(' \u00B7 ');
+  document.getElementById('iv-ibanline').textContent = s.iban ? 'IBAN: '+s.iban : '';
+
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('invoiceview').style.display = 'block';
+  document.getElementById('backbtn').style.display = 'block';
+  document.getElementById('mailbtn').style.display = 'block';
+  document.querySelector('.tabs').style.display = 'none';
+  currentInvoiceMeta = {nr: inv.nr, klant: inv.klant};
+  window.print();
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+window.addEventListener('afterprint', ()=>{
+});
+
+loadAll();
+</script>
+</html>
