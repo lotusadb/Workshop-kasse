@@ -272,9 +272,7 @@
           <input id="s-telefoon" placeholder="06-12345678">
         </div>
       </div>
-      <label>Factuurnummer voorvoegsel</label>
-      <input id="s-prefix" placeholder="LMV-2026-">
-      <label>Volgend factuurnummer (teller)</label>
+      <label>Volgend factuurnummer</label>
       <input id="s-teller" type="number" min="1" value="1">
       <button class="btn btn-primary" onclick="saveSettings()">Opslaan</button>
       <span class="savedtick" id="savedtick">Opgeslagen</span>
@@ -426,7 +424,6 @@ function applySettingsToForm(){
   document.getElementById('s-iban').value = settings.iban || '';
   document.getElementById('s-email').value = settings.email || '';
   document.getElementById('s-telefoon').value = settings.telefoon || '';
-  document.getElementById('s-prefix').value = settings.prefix || 'LMV-2026-';
   document.getElementById('s-teller').value = settings.teller || 1;
 }
 
@@ -443,7 +440,6 @@ async function saveSettings(){
     iban: document.getElementById('s-iban').value,
     email: document.getElementById('s-email').value,
     telefoon: document.getElementById('s-telefoon').value,
-    prefix: document.getElementById('s-prefix').value,
     teller: parseInt(document.getElementById('s-teller').value) || 1
   };
   if(bestaandLogo){ settings.logo = bestaandLogo; }
@@ -716,9 +712,8 @@ function exportCSV(){
 }
 
 function nextFactuurNummer(){
-  const prefix = settings.prefix || 'LMV-2026-';
   const teller = settings.teller || 1;
-  return prefix + String(teller).padStart(3,'0');
+  return String(teller);
 }
 
 function renderQuickItems(){
