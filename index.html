@@ -153,6 +153,8 @@
           <input id="klant-email" placeholder="naam@voorbeeld.nl">
         </div>
       </div>
+      <label>Telefoonnummer (optioneel)</label>
+      <input id="klant-telefoon" placeholder="06-12345678">
       <label>Adres (optioneel)</label>
       <div class="row3">
         <input id="klant-straat" placeholder="Straatnaam">
@@ -348,6 +350,7 @@
     <div class="inv-to">
       <strong id="iv-klantnaam"></strong>
       <span id="iv-klantadres"></span>
+      <span id="iv-klantcontact" style="display:block;"></span>
     </div>
     <table class="inv-table">
       <thead>
@@ -641,6 +644,7 @@ async function buildInvoicePDF(d){
   doc.text(d.klantnaam || 'Klant', 15, clientY);
   doc.setFontSize(9);
   if(d.klantadres){ clientY += 5; doc.text(d.klantadres, 15, clientY); }
+  if(d.klantcontact){ clientY += 5; doc.text(d.klantcontact, 15, clientY); }
 
   let tableY = clientY + 12;
   doc.setFontSize(9);
@@ -928,6 +932,8 @@ function renderItems(){
 async function genereerFactuur(){
   if(items.length===0){ alert('Voeg eerst items toe.'); return; }
   const klantnaam = document.getElementById('klant-naam').value.trim() || 'Klant';
+  const klantemail = document.getElementById('klant-email').value.trim();
+  const klanttelefoon = document.getElementById('klant-telefoon').value.trim();
   const klantstraat = document.getElementById('klant-straat').value.trim();
   const klanthuisnummer = document.getElementById('klant-huisnummer').value.trim();
   const klantpostcode = document.getElementById('klant-postcode').value.trim();
@@ -935,6 +941,7 @@ async function genereerFactuur(){
   const klantadresregel1 = [klantstraat, klanthuisnummer].filter(Boolean).join(' ');
   const klantadresregel2 = [klantpostcode, klantplaats].filter(Boolean).join(' ');
   const klantadres = [klantadresregel1, klantadresregel2].filter(Boolean).join(', ');
+  const klantcontact = [klantemail, klanttelefoon].filter(Boolean).join(' \u00B7 ');
   const factuurnr = document.getElementById('factuurnr').value.trim() || nextFactuurNummer();
   const datum = document.getElementById('factuurdatum').value;
 
@@ -949,6 +956,7 @@ async function genereerFactuur(){
   document.getElementById('iv-datum').textContent = datum ? new Date(datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
   document.getElementById('iv-klantnaam').textContent = klantnaam;
   document.getElementById('iv-klantadres').textContent = klantadres;
+  document.getElementById('iv-klantcontact').textContent = klantcontact;
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML = '';
@@ -985,7 +993,7 @@ async function genereerFactuur(){
 
   invoices.unshift({
     nr: factuurnr, datum, klant: klantnaam, totaal: grand,
-    items: JSON.parse(JSON.stringify(items)), klantadres,
+    items: JSON.parse(JSON.stringify(items)), klantadres, klantcontact,
     bedrijfSnapshot: {...settings}
   });
   try{ await storage.set('invoices', JSON.stringify(invoices)); }catch(e){}
@@ -1008,7 +1016,7 @@ async function genereerFactuur(){
     telefoon: settings.telefoon, kvk: settings.kvk, btwnr: settings.btwnr,
     iban: settings.iban, logo: settings.logo,
     factuurnr: factuurnr, datumStr: datumStr,
-    klantnaam: klantnaam, klantadres: klantadres, items: items
+    klantnaam: klantnaam, klantadres: klantadres, klantcontact: klantcontact, items: items
   });
   currentInvoicePDFBlob = pdfDoc.output('blob');
   currentInvoicePDFName = 'Factuur-' + factuurnr + '.pdf';
@@ -1028,6 +1036,7 @@ function terugNaarFormulier(){
   renderItems();
   document.getElementById('klant-naam').value='';
   document.getElementById('klant-email').value='';
+  document.getElementById('klant-telefoon').value='';
   document.getElementById('klant-straat').value='';
   document.getElementById('klant-huisnummer').value='';
   document.getElementById('klant-postcode').value='';
@@ -1090,6 +1099,7 @@ async function herprintFactuur(idx){
   document.getElementById('iv-datum').textContent = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
   document.getElementById('iv-klantnaam').textContent = inv.klant;
   document.getElementById('iv-klantadres').textContent = inv.klantadres || '';
+  document.getElementById('iv-klantcontact').textContent = inv.klantcontact || '';
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML='';
@@ -1137,7 +1147,7 @@ async function herprintFactuur(idx){
     telefoon: s.telefoon, kvk: s.kvk, btwnr: s.btwnr,
     iban: s.iban, logo: s.logo,
     factuurnr: inv.nr, datumStr: datumStr2,
-    klantnaam: inv.klant, klantadres: inv.klantadres, items: inv.items
+    klantnaam: inv.klant, klantadres: inv.klantadres, klantcontact: inv.klantcontact, items: inv.items
   });
   currentInvoicePDFBlob = pdfDoc2.output('blob');
   currentInvoicePDFName = 'Factuur-' + inv.nr + '.pdf';
