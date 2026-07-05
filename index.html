@@ -716,6 +716,9 @@ async function buildInvoicePDF(d){
     tableY += 6;
   }
   Object.keys(result.btwTotals).sort().forEach(rate=>{
+    doc.text('Bedrag excl. btw (' + rate + '%)', 145, tableY, {align:'right'});
+    doc.text('EUR ' + result.exclTotals[rate].toFixed(2), 195, tableY, {align:'right'});
+    tableY += 6;
     doc.text('Waarvan btw ' + rate + '%', 145, tableY, {align:'right'});
     doc.text('EUR ' + result.btwTotals[rate].toFixed(2), 195, tableY, {align:'right'});
     tableY += 6;
@@ -960,6 +963,8 @@ function fmt(n){
 function computeInvoiceTotals(itemsList, kortingType, kortingWaardeRaw){
   let btwTotalsArtikel = {};
   let btwTotalsWorkshop = {};
+  let exclTotalsArtikel = {};
+  let exclTotalsWorkshop = {};
   let articleInclTotal = 0;
   let workshopInclTotal = 0;
   itemsList.forEach(it=>{
@@ -971,9 +976,11 @@ function computeInvoiceTotals(itemsList, kortingType, kortingWaardeRaw){
     if((it.type||'artikel') === 'workshop'){
       workshopInclTotal += lineTotalIncl;
       btwTotalsWorkshop[it.btw] = (btwTotalsWorkshop[it.btw]||0) + btwBedrag;
+      exclTotalsWorkshop[it.btw] = (exclTotalsWorkshop[it.btw]||0) + lineTotalExcl;
     }else{
       articleInclTotal += lineTotalIncl;
       btwTotalsArtikel[it.btw] = (btwTotalsArtikel[it.btw]||0) + btwBedrag;
+      exclTotalsArtikel[it.btw] = (exclTotalsArtikel[it.btw]||0) + lineTotalExcl;
     }
   });
 
@@ -985,8 +992,15 @@ function computeInvoiceTotals(itemsList, kortingType, kortingWaardeRaw){
   const factor = articleInclTotal > 0 ? (articleInclTotal - kortingBedrag) / articleInclTotal : 1;
 
   let btwTotals = {};
-  Object.keys(btwTotalsArtikel).forEach(rate=>{ btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsArtikel[rate]*factor; });
-  Object.keys(btwTotalsWorkshop).forEach(rate=>{ btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsWorkshop[rate]; });
+  let exclTotals = {};
+  Object.keys(btwTotalsArtikel).forEach(rate=>{
+    btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsArtikel[rate]*factor;
+    exclTotals[rate] = (exclTotals[rate]||0) + exclTotalsArtikel[rate]*factor;
+  });
+  Object.keys(btwTotalsWorkshop).forEach(rate=>{
+    btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsWorkshop[rate];
+    exclTotals[rate] = (exclTotals[rate]||0) + exclTotalsWorkshop[rate];
+  });
 
   const grand = (articleInclTotal - kortingBedrag) + workshopInclTotal;
   let kortingLabel = '';
@@ -994,7 +1008,7 @@ function computeInvoiceTotals(itemsList, kortingType, kortingWaardeRaw){
     kortingLabel = kortingType === 'bedrag' ? 'Korting op artikelen' : ('Korting op artikelen (' + waarde + '%)');
   }
 
-  return { btwTotals, grand, kortingBedrag, kortingLabel };
+  return { btwTotals, exclTotals, grand, kortingBedrag, kortingLabel };
 }
 
 function renderItems(){
@@ -1048,6 +1062,10 @@ function renderItems(){
     btwWrap.appendChild(kRow);
   }
   Object.keys(result.btwTotals).sort().forEach(rate=>{
+    const baseRow = document.createElement('div');
+    baseRow.className = 'totalrow';
+    baseRow.innerHTML = '<span>Bedrag excl. btw ('+rate+'%)</span><span>'+fmt(result.exclTotals[rate])+'</span>';
+    btwWrap.appendChild(baseRow);
     const row = document.createElement('div');
     row.className = 'totalrow';
     row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
@@ -1111,6 +1129,10 @@ async function genereerFactuur(){
     btwWrap.appendChild(kRow);
   }
   Object.keys(result.btwTotals).sort().forEach(rate=>{
+    const baseRow = document.createElement('div');
+    baseRow.className='totalrow';
+    baseRow.innerHTML = '<span>Bedrag excl. btw ('+rate+'%)</span><span>'+fmt(result.exclTotals[rate])+'</span>';
+    btwWrap.appendChild(baseRow);
     const row = document.createElement('div');
     row.className='totalrow';
     row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
@@ -1261,6 +1283,10 @@ async function herprintFactuur(idx){
     btwWrap.appendChild(kRow);
   }
   Object.keys(result.btwTotals).sort().forEach(rate=>{
+    const baseRow = document.createElement('div');
+    baseRow.className='totalrow';
+    baseRow.innerHTML = '<span>Bedrag excl. btw ('+rate+'%)</span><span>'+fmt(result.exclTotals[rate])+'</span>';
+    btwWrap.appendChild(baseRow);
     const row = document.createElement('div');
     row.className='totalrow';
     row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
