@@ -181,7 +181,7 @@
 
       <div class="quickgrid" id="quickitems" style="margin-top:14px;"></div>
 
-      <div class="additem">
+      <div class="additem" style="grid-template-columns:1.5fr 55px 75px 60px 85px 34px;">
         <div>
           <label>Eigen item</label>
           <input id="new-naam" placeholder="Bijv. Foundation mineraal">
@@ -203,6 +203,13 @@
           </select>
         </div>
         <div>
+          <label>Type</label>
+          <select id="new-type">
+            <option value="artikel">Artikel</option>
+            <option value="workshop">Workshop</option>
+          </select>
+        </div>
+        <div>
           <label>&nbsp;</label>
           <button class="iconbtn" onclick="addCustomItem()" title="Toevoegen">+</button>
         </div>
@@ -215,6 +222,17 @@
         <tbody id="itemrows"></tbody>
       </table>
       <div class="empty" id="itemempty">Nog geen items toegevoegd</div>
+
+      <div id="kortingblock" style="display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
+        <label>Korting op artikelen (niet op de workshop)</label>
+        <div style="display:grid;grid-template-columns:1fr 130px;gap:8px;">
+          <input id="korting-waarde" type="number" min="0" step="0.01" value="0" oninput="renderItems()" placeholder="0">
+          <select id="korting-type" onchange="renderItems()">
+            <option value="percentage">% korting</option>
+            <option value="bedrag">&#8364; vast bedrag</option>
+          </select>
+        </div>
+      </div>
 
       <div class="totals" id="totalsblock" style="display:none;">
         <div id="btwrows"></div>
@@ -307,7 +325,7 @@
         <button class="smallbtn" onclick="removeAllQuickItems()" style="color:var(--danger);border-color:var(--danger);">Alles verwijderen</button>
       </div>
       <div id="quickmanage" style="margin-top:10px;"></div>
-      <div class="additem" style="grid-template-columns:2fr 90px 70px 34px;">
+      <div class="additem" style="grid-template-columns:1.6fr 85px 65px 85px 34px;">
         <div>
           <label>Naam</label>
           <input id="qi-naam" placeholder="Bijv. Workshop minerale make-up">
@@ -322,6 +340,13 @@
             <option value="21">21%</option>
             <option value="9">9%</option>
             <option value="0">0%</option>
+          </select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="qi-type">
+            <option value="artikel">Artikel</option>
+            <option value="workshop">Workshop</option>
           </select>
         </div>
         <div>
@@ -422,10 +447,10 @@ async function loadAll(){
 
 function defaultQuickItems(){
   return [
-    {naam:'Workshop minerale make-up', prijs:45, btw:21},
-    {naam:'Mintenz Foundation', prijs:32.5, btw:21},
-    {naam:'Revitaltrax Serum', prijs:38, btw:21},
-    {naam:'Kwastenset mineraal', prijs:24.5, btw:21}
+    {naam:'Workshop minerale make-up', prijs:45, btw:21, type:'workshop'},
+    {naam:'Mintenz Foundation', prijs:32.5, btw:21, type:'artikel'},
+    {naam:'Revitaltrax Serum', prijs:38, btw:21, type:'artikel'},
+    {naam:'Kwastenset mineraal', prijs:24.5, btw:21, type:'artikel'}
   ];
 }
 
@@ -575,10 +600,10 @@ function handleExcelImport(event){
         if(naam && !isNaN(prijs)){
           const bestaandeIdx = quickItems.findIndex(qi => qi.naam.toLowerCase() === naam.toLowerCase());
           if(bestaandeIdx === -1){
-            quickItems.push({naam, prijs, btw});
+            quickItems.push({naam, prijs, btw, type:'artikel'});
             toegevoegd++;
           }else{
-            quickItems[bestaandeIdx] = {naam, prijs, btw};
+            quickItems[bestaandeIdx] = {naam, prijs, btw, type:'artikel'};
             bijgewerkt++;
           }
         }
@@ -658,16 +683,11 @@ async function buildInvoicePDF(d){
   doc.line(15, tableY+2, 195, tableY+2);
   tableY += 8;
 
-  let grand = 0;
-  let btwTotals = {};
   d.items.forEach(it=>{
     const prijsIncl = it.prijs;
     const lineTotalIncl = it.aantal * prijsIncl;
-    const prijsExcl = prijsIncl / (1 + it.btw/100);
-    const lineTotalExcl = it.aantal * prijsExcl;
-    grand += lineTotalIncl;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
-    doc.text(String(it.naam), 15, tableY);
+    const naamLabel = it.type==='workshop' ? String(it.naam) + ' (workshop)' : String(it.naam);
+    doc.text(naamLabel, 15, tableY);
     doc.text(String(it.aantal), 120, tableY, {align:'right'});
     doc.text('EUR ' + prijsIncl.toFixed(2), 145, tableY, {align:'right'});
     doc.text(it.btw + '%', 165, tableY, {align:'right'});
@@ -675,17 +695,24 @@ async function buildInvoicePDF(d){
     tableY += 6;
   });
 
+  const result = computeInvoiceTotals(d.items, d.kortingType || 'percentage', d.kortingWaarde || 0);
+
   tableY += 3;
   doc.line(130, tableY-3, 195, tableY-3);
-  Object.keys(btwTotals).sort().forEach(rate=>{
+  if(result.kortingBedrag > 0){
+    doc.text(result.kortingLabel, 145, tableY, {align:'right'});
+    doc.text('-EUR ' + result.kortingBedrag.toFixed(2), 195, tableY, {align:'right'});
+    tableY += 6;
+  }
+  Object.keys(result.btwTotals).sort().forEach(rate=>{
     doc.text('Waarvan btw ' + rate + '%', 145, tableY, {align:'right'});
-    doc.text('EUR ' + btwTotals[rate].toFixed(2), 195, tableY, {align:'right'});
+    doc.text('EUR ' + result.btwTotals[rate].toFixed(2), 195, tableY, {align:'right'});
     tableY += 6;
   });
   doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
   doc.text('Totaal', 145, tableY, {align:'right'});
-  doc.text('EUR ' + grand.toFixed(2), 195, tableY, {align:'right'});
+  doc.text('EUR ' + result.grand.toFixed(2), 195, tableY, {align:'right'});
   doc.setFont(undefined, 'normal');
 
   let footY = 280;
@@ -739,11 +766,18 @@ function exportCSV(){
     inv.items.forEach(it=>{
       const inclBtw = it.aantal * it.prijs;
       const prijsExcl = it.prijs / (1 + it.btw/100);
+      const omschrijving = it.naam.replace(/;/g,',') + (it.type==='workshop' ? ' (workshop)' : '');
       lines.push([
-        datumStr, inv.nr, inv.klant, it.naam.replace(/;/g,','), it.aantal,
+        datumStr, inv.nr, inv.klant, omschrijving, it.aantal,
         prijsExcl.toFixed(2).replace('.',','), it.btw, inclBtw.toFixed(2).replace('.',',')
       ].join(';'));
     });
+    if(inv.kortingBedrag > 0){
+      lines.push([
+        datumStr, inv.nr, inv.klant, (inv.kortingLabel || 'Korting op artikelen').replace(/;/g,','), 1,
+        '', '', '-' + inv.kortingBedrag.toFixed(2).replace('.',',')
+      ].join(';'));
+    }
   });
   const csv = lines.join('\n');
   const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
@@ -768,7 +802,7 @@ function renderQuickItems(){
       const b = document.createElement('button');
       b.className = 'quickbtn';
       b.textContent = qi.naam + ' \u2014 \u20AC ' + qi.prijs.toFixed(2);
-      b.onclick = ()=> addItem(qi.naam, 1, qi.prijs, qi.btw);
+      b.onclick = ()=> addItem(qi.naam, 1, qi.prijs, qi.btw, qi.type || 'artikel');
       wrap.appendChild(b);
     });
   }
@@ -793,7 +827,7 @@ function addFromDropdown(){
     alert('Geen artikel gevonden met die naam. Kies een artikel uit de lijst.');
     return;
   }
-  addItem(match.naam, aantal, match.prijs, match.btw);
+  addItem(match.naam, aantal, match.prijs, match.btw, match.type || 'artikel');
   input.value = '';
   document.getElementById('quick-aantal').value = '1';
 }
@@ -808,7 +842,7 @@ function renderQuickManage(){
   quickItems.forEach((qi, idx)=>{
     const row = document.createElement('div');
     row.className = 'invoicelist-item';
-    row.innerHTML = '<div>'+qi.naam+'<div class="invoicelist-meta">\u20AC '+qi.prijs.toFixed(2)+' \u00B7 btw '+qi.btw+'%</div></div>';
+    row.innerHTML = '<div>'+qi.naam+(qi.type==='workshop'?' <span style="color:var(--sage-dark);font-size:11px;">(workshop)</span>':'')+'<div class="invoicelist-meta">\u20AC '+qi.prijs.toFixed(2)+' \u00B7 btw '+qi.btw+'%</div></div>';
     const btn = document.createElement('button');
     btn.className = 'smallbtn';
     btn.textContent = 'Verwijderen';
@@ -822,8 +856,9 @@ async function addQuickItem(){
   const naam = document.getElementById('qi-naam').value.trim();
   const prijs = parseFloat(document.getElementById('qi-prijs').value);
   const btw = parseInt(document.getElementById('qi-btw').value);
+  const type = document.getElementById('qi-type').value;
   if(!naam || isNaN(prijs)){ alert('Vul een naam en prijs in.'); return; }
-  quickItems.push({naam, prijs, btw});
+  quickItems.push({naam, prijs, btw, type});
   await storage.set('quickitems', JSON.stringify(quickItems));
   document.getElementById('qi-naam').value='';
   document.getElementById('qi-prijs').value='';
@@ -848,8 +883,8 @@ async function removeAllQuickItems(){
   renderQuickManage();
 }
 
-function addItem(naam, aantal, prijs, btw){
-  items.push({naam, aantal, prijs, btw});
+function addItem(naam, aantal, prijs, btw, type){
+  items.push({naam, aantal, prijs, btw, type: type || 'artikel'});
   renderItems();
 }
 
@@ -858,8 +893,9 @@ function addCustomItem(){
   const aantal = parseInt(document.getElementById('new-aantal').value) || 1;
   const prijs = parseFloat(document.getElementById('new-prijs').value);
   const btw = parseInt(document.getElementById('new-btw').value);
+  const type = document.getElementById('new-type').value;
   if(!naam || isNaN(prijs)){ alert('Vul een naam en prijs in.'); return; }
-  addItem(naam, aantal, prijs, btw);
+  addItem(naam, aantal, prijs, btw, type);
   document.getElementById('new-naam').value='';
   document.getElementById('new-aantal').value='1';
   document.getElementById('new-prijs').value='';
@@ -874,33 +910,70 @@ function fmt(n){
   return '\u20AC ' + n.toLocaleString('nl-NL', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+function computeInvoiceTotals(itemsList, kortingType, kortingWaardeRaw){
+  let btwTotalsArtikel = {};
+  let btwTotalsWorkshop = {};
+  let articleInclTotal = 0;
+  let workshopInclTotal = 0;
+  itemsList.forEach(it=>{
+    const prijsIncl = it.prijs;
+    const lineTotalIncl = it.aantal * prijsIncl;
+    const prijsExcl = prijsIncl / (1 + it.btw/100);
+    const lineTotalExcl = it.aantal * prijsExcl;
+    const btwBedrag = lineTotalIncl - lineTotalExcl;
+    if((it.type||'artikel') === 'workshop'){
+      workshopInclTotal += lineTotalIncl;
+      btwTotalsWorkshop[it.btw] = (btwTotalsWorkshop[it.btw]||0) + btwBedrag;
+    }else{
+      articleInclTotal += lineTotalIncl;
+      btwTotalsArtikel[it.btw] = (btwTotalsArtikel[it.btw]||0) + btwBedrag;
+    }
+  });
+
+  const waarde = parseFloat(kortingWaardeRaw) || 0;
+  let kortingBedrag = 0;
+  if(articleInclTotal > 0 && waarde > 0){
+    kortingBedrag = kortingType === 'bedrag' ? Math.min(waarde, articleInclTotal) : articleInclTotal * (waarde/100);
+  }
+  const factor = articleInclTotal > 0 ? (articleInclTotal - kortingBedrag) / articleInclTotal : 1;
+
+  let btwTotals = {};
+  Object.keys(btwTotalsArtikel).forEach(rate=>{ btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsArtikel[rate]*factor; });
+  Object.keys(btwTotalsWorkshop).forEach(rate=>{ btwTotals[rate] = (btwTotals[rate]||0) + btwTotalsWorkshop[rate]; });
+
+  const grand = (articleInclTotal - kortingBedrag) + workshopInclTotal;
+  let kortingLabel = '';
+  if(kortingBedrag > 0){
+    kortingLabel = kortingType === 'bedrag' ? 'Korting op artikelen' : ('Korting op artikelen (' + waarde + '%)');
+  }
+
+  return { btwTotals, grand, kortingBedrag, kortingLabel };
+}
+
 function renderItems(){
   const tbody = document.getElementById('itemrows');
   const table = document.getElementById('itemtable');
   const empty = document.getElementById('itemempty');
   const totalsblock = document.getElementById('totalsblock');
+  const kortingblock = document.getElementById('kortingblock');
   tbody.innerHTML = '';
   if(items.length===0){
     table.style.display='none';
     empty.style.display='block';
     totalsblock.style.display='none';
+    kortingblock.style.display='none';
     return;
   }
   table.style.display='table';
   empty.style.display='none';
   totalsblock.style.display='block';
+  kortingblock.style.display='block';
 
-  let btwTotals = {};
-  let grand = 0;
   items.forEach((it, idx)=>{
     const prijsIncl = it.prijs;
     const lineTotalIncl = it.aantal * prijsIncl;
-    const prijsExcl = prijsIncl / (1 + it.btw/100);
-    const lineTotalExcl = it.aantal * prijsExcl;
-    grand += lineTotalIncl;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>'+it.naam+'</td>'+
+    tr.innerHTML = '<td>'+it.naam+(it.type==='workshop'?' <span style="color:var(--sage-dark);font-size:11px;">(workshop)</span>':'')+'</td>'+
       '<td class="num">'+it.aantal+'</td>'+
       '<td class="num">'+fmt(prijsIncl)+'</td>'+
       '<td class="num">'+it.btw+'%</td>'+
@@ -915,18 +988,26 @@ function renderItems(){
     tbody.appendChild(tr);
   });
 
+  const kortingType = document.getElementById('korting-type').value;
+  const kortingWaarde = document.getElementById('korting-waarde').value;
+  const result = computeInvoiceTotals(items, kortingType, kortingWaarde);
+
   const btwWrap = document.getElementById('btwrows');
   btwWrap.innerHTML='';
-  let btwSum = 0;
-  Object.keys(btwTotals).sort().forEach(rate=>{
-    btwSum += btwTotals[rate];
+  if(result.kortingBedrag > 0){
+    const kRow = document.createElement('div');
+    kRow.className = 'totalrow';
+    kRow.innerHTML = '<span>'+result.kortingLabel+'</span><span>-'+fmt(result.kortingBedrag)+'</span>';
+    btwWrap.appendChild(kRow);
+  }
+  Object.keys(result.btwTotals).sort().forEach(rate=>{
     const row = document.createElement('div');
     row.className = 'totalrow';
-    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
 
-  document.getElementById('grandtotal').textContent = fmt(grand);
+  document.getElementById('grandtotal').textContent = fmt(result.grand);
 }
 
 async function genereerFactuur(){
@@ -960,30 +1041,35 @@ async function genereerFactuur(){
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML = '';
-  let btwTotals = {};
-  let grand = 0;
   items.forEach(it=>{
     const prijsIncl = it.prijs;
     const lineTotalIncl = it.aantal * prijsIncl;
-    const prijsExcl = prijsIncl / (1 + it.btw/100);
-    const lineTotalExcl = it.aantal * prijsExcl;
-    grand += lineTotalIncl;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
+    tr.innerHTML = '<td>'+it.naam+(it.type==='workshop'?' <span style="color:var(--ink-soft);font-size:11px;">(workshop)</span>':'')+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
       '<td style="text-align:right;">'+fmt(prijsIncl)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
       '<td style="text-align:right;">'+fmt(lineTotalIncl)+'</td>';
     rows.appendChild(tr);
   });
+
+  const kortingType = document.getElementById('korting-type').value;
+  const kortingWaarde = document.getElementById('korting-waarde').value;
+  const result = computeInvoiceTotals(items, kortingType, kortingWaarde);
+
   const btwWrap = document.getElementById('iv-btwrows');
   btwWrap.innerHTML='';
-  Object.keys(btwTotals).sort().forEach(rate=>{
+  if(result.kortingBedrag > 0){
+    const kRow = document.createElement('div');
+    kRow.className='totalrow';
+    kRow.innerHTML = '<span>'+result.kortingLabel+'</span><span>-'+fmt(result.kortingBedrag)+'</span>';
+    btwWrap.appendChild(kRow);
+  }
+  Object.keys(result.btwTotals).sort().forEach(rate=>{
     const row = document.createElement('div');
     row.className='totalrow';
-    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
-  document.getElementById('iv-totaal').textContent = fmt(grand);
+  document.getElementById('iv-totaal').textContent = fmt(result.grand);
 
   let kvkbtwLine = [];
   if(settings.kvk) kvkbtwLine.push('KvK '+settings.kvk);
@@ -992,8 +1078,9 @@ async function genereerFactuur(){
   document.getElementById('iv-ibanline').textContent = settings.iban ? 'IBAN: '+settings.iban : '';
 
   invoices.unshift({
-    nr: factuurnr, datum, klant: klantnaam, totaal: grand,
+    nr: factuurnr, datum, klant: klantnaam, totaal: result.grand,
     items: JSON.parse(JSON.stringify(items)), klantadres, klantcontact,
+    kortingType, kortingWaarde, kortingBedrag: result.kortingBedrag, kortingLabel: result.kortingLabel,
     bedrijfSnapshot: {...settings}
   });
   try{ await storage.set('invoices', JSON.stringify(invoices)); }catch(e){}
@@ -1016,7 +1103,8 @@ async function genereerFactuur(){
     telefoon: settings.telefoon, kvk: settings.kvk, btwnr: settings.btwnr,
     iban: settings.iban, logo: settings.logo,
     factuurnr: factuurnr, datumStr: datumStr,
-    klantnaam: klantnaam, klantadres: klantadres, klantcontact: klantcontact, items: items
+    klantnaam: klantnaam, klantadres: klantadres, klantcontact: klantcontact, items: items,
+    kortingType: kortingType, kortingWaarde: kortingWaarde
   });
   currentInvoicePDFBlob = pdfDoc.output('blob');
   currentInvoicePDFName = 'Factuur-' + factuurnr + '.pdf';
@@ -1041,6 +1129,8 @@ function terugNaarFormulier(){
   document.getElementById('klant-huisnummer').value='';
   document.getElementById('klant-postcode').value='';
   document.getElementById('klant-plaats').value='';
+  document.getElementById('korting-waarde').value='0';
+  document.getElementById('korting-type').value='percentage';
   document.getElementById('factuurdatum').valueAsDate = new Date();
   document.getElementById('factuurnr').value = nextFactuurNummer();
 }
@@ -1103,29 +1193,33 @@ async function herprintFactuur(idx){
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML='';
-  let btwTotals={}; let grand=0;
   inv.items.forEach(it=>{
     const prijsIncl = it.prijs;
     const lineTotalIncl = it.aantal * prijsIncl;
-    const prijsExcl = prijsIncl / (1 + it.btw/100);
-    const lineTotalExcl = it.aantal * prijsExcl;
-    grand += lineTotalIncl;
-    btwTotals[it.btw] = (btwTotals[it.btw]||0) + (lineTotalIncl - lineTotalExcl);
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>'+it.naam+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
+    tr.innerHTML = '<td>'+it.naam+(it.type==='workshop'?' <span style="color:var(--ink-soft);font-size:11px;">(workshop)</span>':'')+'</td><td style="text-align:right;">'+it.aantal+'</td>'+
       '<td style="text-align:right;">'+fmt(prijsIncl)+'</td><td style="text-align:right;">'+it.btw+'%</td>'+
       '<td style="text-align:right;">'+fmt(lineTotalIncl)+'</td>';
     rows.appendChild(tr);
   });
+
+  const result = computeInvoiceTotals(inv.items, inv.kortingType || 'percentage', inv.kortingWaarde || 0);
+
   const btwWrap = document.getElementById('iv-btwrows');
   btwWrap.innerHTML='';
-  Object.keys(btwTotals).sort().forEach(rate=>{
+  if(result.kortingBedrag > 0){
+    const kRow = document.createElement('div');
+    kRow.className='totalrow';
+    kRow.innerHTML = '<span>'+result.kortingLabel+'</span><span>-'+fmt(result.kortingBedrag)+'</span>';
+    btwWrap.appendChild(kRow);
+  }
+  Object.keys(result.btwTotals).sort().forEach(rate=>{
     const row = document.createElement('div');
     row.className='totalrow';
-    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(btwTotals[rate])+'</span>';
+    row.innerHTML = '<span>Waarvan btw '+rate+'%</span><span>'+fmt(result.btwTotals[rate])+'</span>';
     btwWrap.appendChild(row);
   });
-  document.getElementById('iv-totaal').textContent = fmt(grand);
+  document.getElementById('iv-totaal').textContent = fmt(result.grand);
   let kvkbtwLine=[];
   if(s.kvk) kvkbtwLine.push('KvK '+s.kvk);
   if(s.btwnr) kvkbtwLine.push('Btw-nr '+s.btwnr);
@@ -1147,7 +1241,8 @@ async function herprintFactuur(idx){
     telefoon: s.telefoon, kvk: s.kvk, btwnr: s.btwnr,
     iban: s.iban, logo: s.logo,
     factuurnr: inv.nr, datumStr: datumStr2,
-    klantnaam: inv.klant, klantadres: inv.klantadres, klantcontact: inv.klantcontact, items: inv.items
+    klantnaam: inv.klant, klantadres: inv.klantadres, klantcontact: inv.klantcontact, items: inv.items,
+    kortingType: inv.kortingType, kortingWaarde: inv.kortingWaarde
   });
   currentInvoicePDFBlob = pdfDoc2.output('blob');
   currentInvoicePDFName = 'Factuur-' + inv.nr + '.pdf';
