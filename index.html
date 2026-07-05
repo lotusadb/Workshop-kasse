@@ -365,7 +365,8 @@
         <h2 id="iv-bedrijf"></h2>
         <p id="iv-adres"></p>
         <p id="iv-postplaats"></p>
-        <p id="iv-contact"></p>
+        <p id="iv-email"></p>
+        <p id="iv-telefoon"></p>
       </div>
       <div class="inv-title">
         <h3>Factuur</h3>
@@ -373,10 +374,12 @@
         <p id="iv-datum"></p>
       </div>
     </div>
-    <div class="inv-to">
+    <div class="inv-to" style="margin-top:20px;">
       <strong id="iv-klantnaam"></strong>
-      <span id="iv-klantadres"></span>
-      <span id="iv-klantcontact" style="display:block;"></span>
+      <span id="iv-klantadresregel1" style="display:block;"></span>
+      <span id="iv-klantadresregel2" style="display:block;"></span>
+      <span id="iv-klantemail" style="display:block;"></span>
+      <span id="iv-klanttelefoon" style="display:block;"></span>
     </div>
     <table class="inv-table">
       <thead>
@@ -666,8 +669,8 @@ async function buildInvoicePDF(d){
   const plaatsline = [d.postcode, d.plaats].filter(Boolean).join(' ');
   if(straatline){ doc.text(straatline, 15, infoY); infoY += 5; }
   if(plaatsline){ doc.text(plaatsline, 15, infoY); infoY += 5; }
-  const contactline = [d.email, d.telefoon].filter(Boolean).join('  |  ');
-  if(contactline){ doc.text(contactline, 15, infoY); infoY += 5; }
+  if(d.email){ doc.text(d.email, 15, infoY); infoY += 5; }
+  if(d.telefoon){ doc.text(d.telefoon, 15, infoY); infoY += 5; }
 
   doc.setFontSize(16);
   doc.text('FACTUUR', 195, 20, {align:'right'});
@@ -675,12 +678,14 @@ async function buildInvoicePDF(d){
   doc.text(d.factuurnr || '', 195, 27, {align:'right'});
   doc.text(d.datumStr || '', 195, 32, {align:'right'});
 
-  let clientY = Math.max(infoY, 45) + 10;
+  let clientY = Math.max(infoY, 45) + 16;
   doc.setFontSize(11);
   doc.text(d.klantnaam || 'Klant', 15, clientY);
   doc.setFontSize(9);
-  if(d.klantadres){ clientY += 5; doc.text(d.klantadres, 15, clientY); }
-  if(d.klantcontact){ clientY += 5; doc.text(d.klantcontact, 15, clientY); }
+  if(d.klantadresregel1){ clientY += 5; doc.text(d.klantadresregel1, 15, clientY); }
+  if(d.klantadresregel2){ clientY += 5; doc.text(d.klantadresregel2, 15, clientY); }
+  if(d.klantemail){ clientY += 5; doc.text(d.klantemail, 15, clientY); }
+  if(d.klanttelefoon){ clientY += 5; doc.text(d.klanttelefoon, 15, clientY); }
 
   let tableY = clientY + 12;
   doc.setFontSize(9);
@@ -1097,12 +1102,15 @@ async function genereerFactuur(){
   document.getElementById('iv-bedrijf').textContent = settings.bedrijf || 'Lotus Mineral Visagie';
   document.getElementById('iv-adres').textContent = [settings.straat, settings.huisnummer].filter(Boolean).join(' ');
   document.getElementById('iv-postplaats').textContent = [settings.postcode, settings.plaats].filter(Boolean).join(' ');
-  document.getElementById('iv-contact').textContent = [settings.email, settings.telefoon].filter(Boolean).join(' \u00B7 ');
+  document.getElementById('iv-email').textContent = settings.email || '';
+  document.getElementById('iv-telefoon').textContent = settings.telefoon || '';
   document.getElementById('iv-nr').textContent = factuurnr;
   document.getElementById('iv-datum').textContent = datum ? new Date(datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
   document.getElementById('iv-klantnaam').textContent = klantnaam;
-  document.getElementById('iv-klantadres').textContent = klantadres;
-  document.getElementById('iv-klantcontact').textContent = klantcontact;
+  document.getElementById('iv-klantadresregel1').textContent = klantadresregel1;
+  document.getElementById('iv-klantadresregel2').textContent = klantadresregel2;
+  document.getElementById('iv-klantemail').textContent = klantemail;
+  document.getElementById('iv-klanttelefoon').textContent = klanttelefoon;
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML = '';
@@ -1149,6 +1157,7 @@ async function genereerFactuur(){
   invoices.unshift({
     nr: factuurnr, datum, klant: klantnaam, totaal: result.grand,
     items: JSON.parse(JSON.stringify(items)), klantadres, klantcontact,
+    klantadresregel1, klantadresregel2, klantemail, klanttelefoon,
     kortingType, kortingWaarde, kortingBedrag: result.kortingBedrag, kortingLabel: result.kortingLabel,
     bedrijfSnapshot: {...settings}
   });
@@ -1172,7 +1181,8 @@ async function genereerFactuur(){
     telefoon: settings.telefoon, kvk: settings.kvk, btwnr: settings.btwnr,
     iban: settings.iban, logo: settings.logo,
     factuurnr: factuurnr, datumStr: datumStr,
-    klantnaam: klantnaam, klantadres: klantadres, klantcontact: klantcontact, items: items,
+    klantnaam: klantnaam, klantadresregel1: klantadresregel1, klantadresregel2: klantadresregel2,
+    klantemail: klantemail, klanttelefoon: klanttelefoon, items: items,
     kortingType: kortingType, kortingWaarde: kortingWaarde
   });
   currentInvoicePDFBlob = pdfDoc.output('blob');
@@ -1253,12 +1263,15 @@ async function herprintFactuur(idx){
   document.getElementById('iv-bedrijf').textContent = s.bedrijf || 'Lotus Mineral Visagie';
   document.getElementById('iv-adres').textContent = [s.straat, s.huisnummer].filter(Boolean).join(' ');
   document.getElementById('iv-postplaats').textContent = [s.postcode, s.plaats].filter(Boolean).join(' ');
-  document.getElementById('iv-contact').textContent = [s.email, s.telefoon].filter(Boolean).join(' \u00B7 ');
+  document.getElementById('iv-email').textContent = s.email || '';
+  document.getElementById('iv-telefoon').textContent = s.telefoon || '';
   document.getElementById('iv-nr').textContent = inv.nr;
   document.getElementById('iv-datum').textContent = inv.datum ? new Date(inv.datum).toLocaleDateString('nl-NL', {day:'numeric', month:'long', year:'numeric'}) : '';
   document.getElementById('iv-klantnaam').textContent = inv.klant;
-  document.getElementById('iv-klantadres').textContent = inv.klantadres || '';
-  document.getElementById('iv-klantcontact').textContent = inv.klantcontact || '';
+  document.getElementById('iv-klantadresregel1').textContent = inv.klantadresregel1 || inv.klantadres || '';
+  document.getElementById('iv-klantadresregel2').textContent = inv.klantadresregel2 || '';
+  document.getElementById('iv-klantemail').textContent = inv.klantemail || '';
+  document.getElementById('iv-klanttelefoon').textContent = inv.klanttelefoon || inv.klantcontact || '';
 
   const rows = document.getElementById('iv-rows');
   rows.innerHTML='';
@@ -1314,7 +1327,8 @@ async function herprintFactuur(idx){
     telefoon: s.telefoon, kvk: s.kvk, btwnr: s.btwnr,
     iban: s.iban, logo: s.logo,
     factuurnr: inv.nr, datumStr: datumStr2,
-    klantnaam: inv.klant, klantadres: inv.klantadres, klantcontact: inv.klantcontact, items: inv.items,
+    klantnaam: inv.klant, klantadresregel1: inv.klantadresregel1 || inv.klantadres, klantadresregel2: inv.klantadresregel2,
+    klantemail: inv.klantemail, klanttelefoon: inv.klanttelefoon || inv.klantcontact, items: inv.items,
     kortingType: inv.kortingType, kortingWaarde: inv.kortingWaarde
   });
   currentInvoicePDFBlob = pdfDoc2.output('blob');
