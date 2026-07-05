@@ -317,7 +317,7 @@
 
       <label>Producten importeren vanuit Excel</label>
       <input type="file" id="excel-import" accept=".xlsx,.xls,.csv" onchange="handleExcelImport(event)">
-      <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" (incl. btw) en eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
+      <p class="hint">Verwacht kolommen met een naam zoals "naam"/"product", "prijs" (incl. btw), eventueel "btw" (staat geen btw-kolom in het bestand, dan wordt 21% gebruikt), en eventueel "type"/"soort" (waarde "workshop" wordt herkend, alles anders wordt Artikel). De eerste rij moet de kolomnamen bevatten. Ge&#239;mporteerde producten worden toegevoegd aan de lijst hieronder.</p>
       <div id="import-status"></div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
@@ -351,9 +351,10 @@
         </div>
         <div>
           <label>&nbsp;</label>
-          <button class="iconbtn" onclick="addQuickItem()">+</button>
+          <button class="iconbtn" id="qi-savebtn" onclick="addQuickItem()" title="Toevoegen">+</button>
         </div>
       </div>
+      <button class="smallbtn" id="qi-cancelbtn" onclick="cancelEditQuickItem()" style="display:none;margin-top:8px;">Bewerken annuleren</button>
     </div>
   </div>
 
@@ -586,6 +587,11 @@ function handleExcelImport(event){
         const lower = k.toString().trim().toLowerCase();
         return ['btw','vat'].some(opt => lower.includes(opt));
       });
+      const typeKey = keys.find(k => {
+        if(k === naamKey || k === prijsKey || k === btwKey) return false;
+        const lower = k.toString().trim().toLowerCase();
+        return ['type','soort','categorie'].some(opt => lower.includes(opt));
+      });
 
       if(!naamKey || !prijsKey){
         statusEl.textContent = 'Kon geen kolom voor naam en/of prijs vinden. Gevonden kolommen: ' + keys.join(', ');
@@ -597,13 +603,18 @@ function handleExcelImport(event){
         const naam = String(row[naamKey]).trim();
         const prijs = parseFloat(String(row[prijsKey]).replace(',','.'));
         const btw = btwKey ? (parseInt(String(row[btwKey]).replace('%','')) || 21) : 21;
+        let type = 'artikel';
+        if(typeKey){
+          const ruw = String(row[typeKey]).trim().toLowerCase();
+          if(ruw.includes('workshop')) type = 'workshop';
+        }
         if(naam && !isNaN(prijs)){
           const bestaandeIdx = quickItems.findIndex(qi => qi.naam.toLowerCase() === naam.toLowerCase());
           if(bestaandeIdx === -1){
-            quickItems.push({naam, prijs, btw, type:'artikel'});
+            quickItems.push({naam, prijs, btw, type});
             toegevoegd++;
           }else{
-            quickItems[bestaandeIdx] = {naam, prijs, btw, type:'artikel'};
+            quickItems[bestaandeIdx] = {naam, prijs, btw, type};
             bijgewerkt++;
           }
         }
@@ -611,7 +622,7 @@ function handleExcelImport(event){
       await storage.set('quickitems', JSON.stringify(quickItems));
       renderQuickItems();
       renderQuickManage();
-      statusEl.textContent = toegevoegd + ' product(en) toegevoegd, ' + bijgewerkt + ' bijgewerkt.';
+      statusEl.textContent = toegevoegd + ' product(en) toegevoegd, ' + bijgewerkt + ' bijgewerkt' + (typeKey ? ' (type-kolom herkend: "' + typeKey + '")' : ' (geen type-kolom gevonden, alles op Artikel gezet)') + '.';
     }catch(err){
       statusEl.textContent = 'Dit bestand kon niet worden gelezen (' + (err && err.message ? err.message : 'onbekende fout') + '). Controleer of het een geldig Excel- of CSV-bestand is.';
     }
@@ -843,13 +854,46 @@ function renderQuickManage(){
     const row = document.createElement('div');
     row.className = 'invoicelist-item';
     row.innerHTML = '<div>'+qi.naam+(qi.type==='workshop'?' <span style="color:var(--sage-dark);font-size:11px;">(workshop)</span>':'')+'<div class="invoicelist-meta">\u20AC '+qi.prijs.toFixed(2)+' \u00B7 btw '+qi.btw+'%</div></div>';
+    const btnWrap = document.createElement('div');
+    btnWrap.style.display = 'flex';
+    btnWrap.style.gap = '6px';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'smallbtn';
+    editBtn.textContent = 'Bewerken';
+    editBtn.onclick = ()=> editQuickItem(idx);
     const btn = document.createElement('button');
     btn.className = 'smallbtn';
     btn.textContent = 'Verwijderen';
     btn.onclick = ()=> removeQuickItem(idx);
-    row.appendChild(btn);
+    btnWrap.appendChild(editBtn);
+    btnWrap.appendChild(btn);
+    row.appendChild(btnWrap);
     wrap.appendChild(row);
   });
+}
+
+let quickItemEditIndex = null;
+
+function editQuickItem(idx){
+  const qi = quickItems[idx];
+  quickItemEditIndex = idx;
+  document.getElementById('qi-naam').value = qi.naam;
+  document.getElementById('qi-prijs').value = qi.prijs;
+  document.getElementById('qi-btw').value = String(qi.btw);
+  document.getElementById('qi-type').value = qi.type || 'artikel';
+  document.getElementById('qi-savebtn').textContent = '\u2713';
+  document.getElementById('qi-savebtn').title = 'Wijziging opslaan';
+  document.getElementById('qi-cancelbtn').style.display = 'block';
+  document.getElementById('qi-naam').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function cancelEditQuickItem(){
+  quickItemEditIndex = null;
+  document.getElementById('qi-naam').value = '';
+  document.getElementById('qi-prijs').value = '';
+  document.getElementById('qi-savebtn').textContent = '+';
+  document.getElementById('qi-savebtn').title = 'Toevoegen';
+  document.getElementById('qi-cancelbtn').style.display = 'none';
 }
 
 async function addQuickItem(){
@@ -858,10 +902,13 @@ async function addQuickItem(){
   const btw = parseInt(document.getElementById('qi-btw').value);
   const type = document.getElementById('qi-type').value;
   if(!naam || isNaN(prijs)){ alert('Vul een naam en prijs in.'); return; }
-  quickItems.push({naam, prijs, btw, type});
+  if(quickItemEditIndex !== null){
+    quickItems[quickItemEditIndex] = {naam, prijs, btw, type};
+  }else{
+    quickItems.push({naam, prijs, btw, type});
+  }
   await storage.set('quickitems', JSON.stringify(quickItems));
-  document.getElementById('qi-naam').value='';
-  document.getElementById('qi-prijs').value='';
+  cancelEditQuickItem();
   renderQuickItems();
   renderQuickManage();
 }
