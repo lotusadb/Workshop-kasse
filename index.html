@@ -127,7 +127,17 @@
     .noprint{display:none !important;}
   }
 </style>
-<div class="app">
+<div id="loginscreen" style="max-width:380px;margin:60px auto;padding:0 16px;text-align:center;font-family:'Karla',sans-serif;">
+  <h1 style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#6E3941;margin-bottom:6px;">Lotus Mineral Visagie</h1>
+  <p style="color:#6B655C;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:30px;">Workshop kassa</p>
+  <div style="background:#FFFFFF;border:1px solid #C0D9C4;border-radius:14px;padding:28px 20px;">
+    <p style="font-size:14px;color:#2C2C2A;margin-bottom:18px;">Log in met Google om je gegevens overal te kunnen gebruiken.</p>
+    <button id="google-login-btn" onclick="startGoogleLogin()" disabled style="width:100%;padding:12px;border-radius:10px;border:none;background:#3D6B45;color:#fff;font-family:'Karla',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">Inloggen met Google</button>
+    <p id="login-status" style="font-size:12px;color:#6B655C;margin-top:14px;">Laden...</p>
+  </div>
+</div>
+
+<div class="app" id="mainapp" style="display:none;">
 
   <div class="brandbar">
     <h1>Lotus Mineral Visagie</h1>
@@ -311,6 +321,15 @@
       <span class="savedtick" id="savedtick">Opgeslagen</span>
     </div>
 
+    <div class="card" style="border-color:var(--sage);">
+      <h2>Back-up</h2>
+      <p class="hint">Al je gegevens (instellingen, artikelenlijst, facturen) worden bewaard in de browser van dit ene toestel. Maak regelmatig een back-up, en zeker na het importeren van je artikelenlijst — mocht je ooit van toestel wisselen of de gegevens kwijtraken, dan zet je alles in &eacute;&eacute;n keer terug.</p>
+      <button class="btn btn-primary" onclick="maakBackup()">Back-up downloaden</button>
+      <label style="margin-top:14px;">Back-up terugzetten</label>
+      <input type="file" id="restore-file" accept=".json" onchange="herstelBackup(event)">
+      <div id="restore-status" class="hint"></div>
+    </div>
+
     <div class="card">
       <h2>Snelle items beheren</h2>
       <p class="hint">Producten en workshops die je vaak verkoopt, zodat je ze tijdens de workshop met &#233;&#233;n tik kan toevoegen.</p>
@@ -407,16 +426,130 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+const GOOGLE_CLIENT_ID = '473676385943-lj8lq8kf9dhfvfckejafgn8ckpmoe9c7.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_FILENAME = 'workshop-kassa-data.json';
+
+let driveAccessToken = null;
+let driveFileId = null;
+let driveDataCache = null;
+let tokenClient = null;
+
+function setLoginStatus(msg){
+  const el = document.getElementById('login-status');
+  if(el) el.textContent = msg;
+}
+
+function initGoogleClient(){
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (tokenResponse)=>{
+      if(tokenResponse && tokenResponse.access_token){
+        driveAccessToken = tokenResponse.access_token;
+        await onGoogleLoginSuccess();
+      }else{
+        setLoginStatus('Inloggen mislukt, probeer het opnieuw.');
+      }
+    }
+  });
+  setLoginStatus('');
+  document.getElementById('google-login-btn').disabled = false;
+}
+
+function startGoogleLogin(){
+  setLoginStatus('Bezig met inloggen...');
+  if(tokenClient){ tokenClient.requestAccessToken({prompt:'consent'}); }
+}
+
+async function onGoogleLoginSuccess(){
+  setLoginStatus('Gegevens ophalen...');
+  try{
+    await driveFindOrCreateFile();
+    await loadAll();
+    document.getElementById('loginscreen').style.display = 'none';
+    document.getElementById('mainapp').style.display = 'block';
+  }catch(err){
+    setLoginStatus('Er ging iets mis bij het ophalen van je gegevens. Probeer opnieuw in te loggen.');
+  }
+}
+
+async function driveFindOrCreateFile(){
+  const q = encodeURIComponent("name='" + DRIVE_FILENAME + "'");
+  const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=' + q + '&fields=files(id,name)', {
+    headers: { Authorization: 'Bearer ' + driveAccessToken }
+  });
+  if(res.status === 401){ throw new Error('unauthorized'); }
+  const data = await res.json();
+  if(data.files && data.files.length > 0){
+    driveFileId = data.files[0].id;
+    return;
+  }
+  const metadata = { name: DRIVE_FILENAME, parents: ['appDataFolder'] };
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(metadata)
+  });
+  const createData = await createRes.json();
+  driveFileId = createData.id;
+  await driveWriteRaw({});
+}
+
+async function driveReadRaw(){
+  const res = await fetch('https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media', {
+    headers: { Authorization: 'Bearer ' + driveAccessToken }
+  });
+  if(!res.ok) return {};
+  try{ return await res.json(); }catch(e){ return {}; }
+}
+
+async function driveWriteRaw(obj){
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media', {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(obj)
+  });
+  if(res.status === 401){ throw new Error('unauthorized'); }
+}
+
+async function driveRetryOnAuthError(fn){
+  try{
+    return await fn();
+  }catch(err){
+    if(err && err.message === 'unauthorized' && tokenClient){
+      return new Promise((resolve)=>{
+        tokenClient.callback = async (tokenResponse)=>{
+          if(tokenResponse && tokenResponse.access_token){
+            driveAccessToken = tokenResponse.access_token;
+            try{ resolve(await fn()); }catch(e){ resolve(null); }
+          }else{ resolve(null); }
+        };
+        tokenClient.requestAccessToken({prompt:''});
+      });
+    }
+    alert('Opslaan/laden mislukt. Controleer je internetverbinding en probeer het opnieuw.');
+    return null;
+  }
+}
+
 const storage = {
   async get(key){
-    const v = localStorage.getItem('lmv_'+key);
-    if(v === null) return null;
-    return {key, value: v};
+    return driveRetryOnAuthError(async ()=>{
+      if(driveDataCache === null){ driveDataCache = await driveReadRaw(); }
+      if(!(key in driveDataCache)) return null;
+      return { key, value: driveDataCache[key] };
+    });
   },
   async set(key, value){
-    localStorage.setItem('lmv_'+key, value);
-    return {key, value};
+    return driveRetryOnAuthError(async ()=>{
+      if(driveDataCache === null){ driveDataCache = await driveReadRaw(); }
+      driveDataCache[key] = value;
+      await driveWriteRaw(driveDataCache);
+      return { key, value };
+    });
   }
 };
 let items = [];
@@ -470,6 +603,57 @@ function applySettingsToForm(){
   document.getElementById('s-email').value = settings.email || '';
   document.getElementById('s-telefoon').value = settings.telefoon || '';
   document.getElementById('s-teller').value = settings.teller || 1;
+}
+
+function maakBackup(){
+  const backup = {
+    type: 'lotus-workshop-kassa-backup',
+    datum: new Date().toISOString(),
+    settings: settings,
+    quickItems: quickItems,
+    invoices: invoices
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const datumStr = new Date().toISOString().slice(0,10);
+  a.download = 'workshop-kassa-backup-' + datumStr + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function herstelBackup(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('restore-status');
+  statusEl.textContent = 'Bestand wordt gelezen...';
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data || typeof data !== 'object' || (!data.settings && !data.quickItems && !data.invoices)){
+        statusEl.textContent = 'Dit lijkt geen geldig back-upbestand van deze tool te zijn.';
+        return;
+      }
+      const bevestigd = confirm('Dit vervangt je huidige instellingen, artikelenlijst en facturen door de inhoud van dit back-upbestand. Doorgaan?');
+      if(!bevestigd){ statusEl.textContent = ''; event.target.value=''; return; }
+      if(data.settings){ settings = data.settings; await storage.set('settings', JSON.stringify(settings)); }
+      if(data.quickItems){ quickItems = data.quickItems; await storage.set('quickitems', JSON.stringify(quickItems)); }
+      if(data.invoices){ invoices = data.invoices; await storage.set('invoices', JSON.stringify(invoices)); }
+      applySettingsToForm();
+      renderLogoPreview();
+      renderQuickItems();
+      renderQuickManage();
+      renderInvoiceList();
+      statusEl.textContent = 'Back-up teruggezet: ' + (data.quickItems ? data.quickItems.length : 0) + ' artikelen, ' + (data.invoices ? data.invoices.length : 0) + ' facturen.';
+      event.target.value = '';
+    }catch(err){
+      statusEl.textContent = 'Dit bestand kon niet worden gelezen (' + (err && err.message ? err.message : 'onbekende fout') + ').';
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function saveSettings(){
@@ -1347,6 +1531,13 @@ document.querySelectorAll('.tab').forEach(tab=>{
 window.addEventListener('afterprint', ()=>{
 });
 
-loadAll();
+function waitForGoogleLib(){
+  if(window.google && google.accounts && google.accounts.oauth2){
+    initGoogleClient();
+  }else{
+    setTimeout(waitForGoogleLib, 200);
+  }
+}
+waitForGoogleLib();
 </script>
 </html>
