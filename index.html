@@ -144,6 +144,14 @@
     <span>Workshop kassa</span>
   </div>
 
+  <div id="migratebanner" class="noprint" style="display:none;background:var(--sand);border:1px solid var(--sage);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+    <p style="font-size:13px;color:var(--ink);margin-bottom:10px;">We vonden eerder opgeslagen gegevens op dit toestel (instellingen, artikelen en/of facturen). Wil je die overzetten naar je Google Drive-account, zodat je ze hier ook ziet?</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" style="margin-top:0;" onclick="migrateOldLocalData()">Overzetten naar Google Drive</button>
+      <button class="btn btn-secondary" style="margin-top:0;" onclick="dismissMigrateBanner()">Nee, negeren</button>
+    </div>
+  </div>
+
   <div class="tabs noprint">
     <div class="tab active" data-tab="nieuw">Nieuwe bestelling</div>
     <div class="tab" data-tab="facturen">Facturen</div>
@@ -471,9 +479,63 @@ async function onGoogleLoginSuccess(){
     await loadAll();
     document.getElementById('loginscreen').style.display = 'none';
     document.getElementById('mainapp').style.display = 'block';
+    checkForOldLocalData();
   }catch(err){
     setLoginStatus('Er ging iets mis bij het ophalen van je gegevens. Probeer opnieuw in te loggen.');
   }
+}
+
+function checkForOldLocalData(){
+  const hasOld = localStorage.getItem('lmv_settings') || localStorage.getItem('lmv_quickitems') || localStorage.getItem('lmv_invoices');
+  if(hasOld){
+    document.getElementById('migratebanner').style.display = 'block';
+  }
+}
+
+function dismissMigrateBanner(){
+  document.getElementById('migratebanner').style.display = 'none';
+}
+
+async function migrateOldLocalData(){
+  const bevestigd = confirm('Dit voegt de oude gegevens van dit toestel toe aan je Google Drive-account. Bestaande instellingen worden overschreven; artikelen en facturen worden samengevoegd (dubbele artikelnamen worden overgeslagen). Doorgaan?');
+  if(!bevestigd) return;
+
+  const oldSettingsRaw = localStorage.getItem('lmv_settings');
+  const oldQuickRaw = localStorage.getItem('lmv_quickitems');
+  const oldInvoicesRaw = localStorage.getItem('lmv_invoices');
+
+  if(oldSettingsRaw){
+    try{
+      const oldSettings = JSON.parse(oldSettingsRaw);
+      settings = { ...oldSettings, ...settings };
+      await storage.set('settings', JSON.stringify(settings));
+    }catch(e){}
+  }
+  if(oldQuickRaw){
+    try{
+      const oldQuick = JSON.parse(oldQuickRaw);
+      oldQuick.forEach(oi=>{
+        const bestaatAl = quickItems.some(qi => qi.naam.toLowerCase() === oi.naam.toLowerCase());
+        if(!bestaatAl){ quickItems.push(oi); }
+      });
+      await storage.set('quickitems', JSON.stringify(quickItems));
+    }catch(e){}
+  }
+  if(oldInvoicesRaw){
+    try{
+      const oldInvoices = JSON.parse(oldInvoicesRaw);
+      invoices = invoices.concat(oldInvoices);
+      await storage.set('invoices', JSON.stringify(invoices));
+    }catch(e){}
+  }
+
+  applySettingsToForm();
+  renderLogoPreview();
+  renderQuickItems();
+  renderQuickManage();
+  renderInvoiceList();
+  dismissMigrateBanner();
+  alert('Oude gegevens zijn overgezet naar je Google Drive-account.');
 }
 
 async function driveFindOrCreateFile(){
