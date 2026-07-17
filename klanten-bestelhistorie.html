@@ -315,6 +315,7 @@
       <button class="btn btn-secondary btn-small" id="btn-export-excel">Exporteren als Excel (.xlsx)</button>
       <button class="btn btn-secondary btn-small" id="btn-export-csv">Exporteren als CSV</button>
       <button class="btn btn-secondary btn-small" id="btn-import-json">Back-up terugzetten</button>
+      <button class="btn btn-danger btn-small" id="btn-delete-all">Alles verwijderen</button>
       <input type="file" id="import-input" accept="application/json">
     </div>
   </div>
@@ -1538,6 +1539,21 @@ function downloadBlob(blob, filename){
 }
 
 document.getElementById('btn-import-json').addEventListener('click', () => document.getElementById('import-input').click());
+
+document.getElementById('btn-delete-all').addEventListener('click', async () => {
+  if (db.customers.length === 0){ showToast('Er staan geen gegevens in de tool'); return; }
+  const aantalKlanten = db.customers.length;
+  const aantalFacturen = db.customers.reduce((s,c) => s + c.invoices.length, 0);
+  const stap1 = confirm(`Weet je zeker dat je ALLES wilt verwijderen? Dit wist ${aantalKlanten} klant(en) en ${aantalFacturen} factu(u)r(en) definitief. Tip: download eerst een back-up (JSON), dan kun je altijd terug.`);
+  if (!stap1) return;
+  const stap2 = prompt('Typ ter bevestiging het woord VERWIJDEREN (in hoofdletters):');
+  if (stap2 !== 'VERWIJDEREN'){ showToast('Verwijderen geannuleerd'); return; }
+  db = { customers: [] };
+  await saveDB();
+  renderCustomerList();
+  renderArticleTable();
+  showToast('Alle gegevens zijn verwijderd');
+});
 document.getElementById('import-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
