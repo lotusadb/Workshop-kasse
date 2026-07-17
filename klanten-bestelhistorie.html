@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klant- en Bestelhistorie - Lotus Mineral Visagie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --porcelain:#FFFFFF;
+    --sand:#EDF7EF;
+    --clay:#3D6B45;
+    --clay-dark:#2C4F33;
+    --sage:#7AAD82;
+    --ink:#2C2C2A;
+    --ink-soft:#6B7C6E;
+    --gold:#C6A567;
+    --line:#C0D9C4;
+    --danger:#A32D2D;
+    --warn:#9C6B1F;
+    --warn-bg:#FBF2E2;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Karla',sans-serif;font-size:14px;background:var(--sand);color:var(--ink);
+    margin:0;padding:0;line-height:1.5;
+  }
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:600;margin:0;color:var(--clay-dark);}
+  header{
+    background:var(--clay);color:var(--porcelain);padding:22px 24px 18px;
+    box-shadow:0 2px 8px rgba(44,79,51,.15);
+  }
+  header h1{color:var(--porcelain);font-size:26px;}
+  header p{margin:4px 0 0;color:var(--sand);font-size:13px;opacity:.9;}
+
+  nav.tabs{
+    display:flex;gap:4px;background:var(--porcelain);padding:0 16px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;
+    overflow-x:auto;
+  }
+  nav.tabs button{
+    font-family:'Karla',sans-serif;font-size:14px;font-weight:700;color:var(--ink-soft);
+    background:none;border:none;padding:14px 16px 12px;cursor:pointer;border-bottom:3px solid transparent;
+    white-space:nowrap;
+  }
+  nav.tabs button.active{color:var(--clay-dark);border-bottom-color:var(--clay);}
+  nav.tabs button:hover{color:var(--clay);}
+
+  main{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;}
+
+  .card{
+    background:var(--porcelain);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;margin-bottom:16px;
+  }
+  .intro{color:var(--ink-soft);font-size:13px;margin:0 0 16px;}
+
+  .dropzone{
+    border:2px dashed var(--sage);border-radius:12px;background:var(--porcelain);
+    padding:28px 20px;text-align:center;margin-bottom:20px;
+  }
+  .dropzone p{margin:0 0 12px;color:var(--ink-soft);font-size:13px;}
+  .btn{
+    font-family:'Karla',sans-serif;font-size:14px;font-weight:700;cursor:pointer;
+    border:none;border-radius:7px;padding:10px 18px;letter-spacing:.2px;
+  }
+  .btn-primary{background:var(--clay);color:var(--porcelain);}
+  .btn-primary:hover{background:var(--clay-dark);}
+  .btn-secondary{background:var(--porcelain);color:var(--clay);border:1.5px solid var(--clay);}
+  .btn-secondary:hover{background:var(--sand);}
+  .btn-danger{background:var(--porcelain);color:var(--danger);border:1.5px solid var(--danger);}
+  .btn-danger:hover{background:#FBEAEA;}
+  .btn-small{padding:6px 12px;font-size:12.5px;border-radius:6px;}
+  #backup-banner{
+    display:none;align-items:center;gap:12px;flex-wrap:wrap;
+    background:#FBF3DE;border:1px solid #E6C878;border-radius:8px;
+    padding:12px 16px;margin:16px auto 0;max-width:1000px;font-size:13px;color:var(--ink);
+  }
+  #backup-banner.show{display:flex;}
+  #backup-banner strong{color:var(--clay-dark);}
+  #backup-banner .banner-actions{margin-left:auto;display:flex;gap:8px;}
+  .customer-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .customer-address{margin:2px 0 0;font-size:13px;color:var(--muted,#5b6b5e);}
+  .customer-address-empty{font-style:italic;opacity:.7;}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;}
+  input[type=file]{display:none;}
+
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;}
+  .badge-ok{background:#E4F2E7;color:var(--clay-dark);}
+  .badge-warn{background:var(--warn-bg);color:var(--warn);}
+
+  .review-card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;background:var(--porcelain);}
+  .review-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .review-card-head .filename{font-size:12px;color:var(--ink-soft);}
+
+  .form-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+  .form-field{flex:1;min-width:150px;}
+  .form-field label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;}
+  .form-field input,.form-field select{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;
+    font-family:'Karla',sans-serif;font-size:14px;color:var(--ink);background:var(--porcelain);
+  }
+  .form-field input:focus,.form-field select:focus{outline:2px solid var(--sage);outline-offset:0;border-color:var(--sage);}
+
+  table.items-table{width:100%;border-collapse:collapse;margin:10px 0;}
+  table.items-table th{
+    text-align:left;font-size:11.5px;color:var(--ink-soft);font-weight:700;
+    padding:4px 6px;border-bottom:1.5px solid var(--line);
+  }
+  table.items-table td{padding:4px 6px;vertical-align:middle;}
+  table.items-table td input,table.items-table td select{
+    width:100%;padding:6px 7px;border:1px solid var(--line);border-radius:5px;font-size:13.5px;font-family:'Karla',sans-serif;
+  }
+  table.items-table td.col-aantal input{width:56px;}
+  table.items-table td.col-prijs input,table.items-table td.col-totaal input{width:80px;}
+  table.items-table td.col-type select{min-width:96px;}
+  .row-del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:2px 6px;}
+  .table-scroll{overflow-x:auto;}
+
+  .raw-text-toggle{font-size:12px;color:var(--clay);cursor:pointer;background:none;border:none;padding:0;text-decoration:underline;margin:6px 0;}
+  .raw-text{
+    display:none;white-space:pre-wrap;font-family:monospace;font-size:11px;background:var(--sand);
+    border-radius:6px;padding:10px;max-height:200px;overflow-y:auto;color:var(--ink-soft);margin-top:6px;
+  }
+  .raw-text.show{display:block;}
+
+  .card-actions{display:flex;gap:10px;margin-top:12px;justify-content:flex-end;}
+
+  .search-bar{margin-bottom:14px;}
+  .search-bar input{
+    width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;
+    font-family:'Karla',sans-serif;background:var(--porcelain);
+  }
+
+  .customer-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:14px 16px;background:var(--porcelain);border:1px solid var(--line);border-radius:9px;
+    margin-bottom:8px;cursor:pointer;
+  }
+  .customer-row:hover{border-color:var(--sage);}
+  .customer-row .naam{font-weight:700;color:var(--clay-dark);font-size:15px;}
+  .customer-row .meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .customer-row .bedrag{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--clay-dark);white-space:nowrap;}
+  .customer-row .row-right{display:flex;align-items:center;gap:10px;}
+  .btn-row-delete{
+    background:none;border:none;color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;
+    padding:2px 6px;border-radius:5px;
+  }
+  .btn-row-delete:hover{color:#b3261e;background:#fbeceb;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+  .empty-state h3{color:var(--ink-soft);margin-bottom:6px;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(44,44,42,.45);display:flex;align-items:flex-start;
+    justify-content:center;padding:30px 14px;overflow-y:auto;z-index:100;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal-content{
+    background:var(--porcelain);border-radius:12px;max-width:720px;width:100%;padding:24px;
+    box-shadow:0 10px 40px rgba(0,0,0,.2);
+  }
+  .modal-close-row{display:flex;justify-content:flex-end;margin-bottom:-6px;}
+  .modal-close-row button{background:none;border:none;font-size:22px;color:var(--ink-soft);cursor:pointer;line-height:1;}
+
+  .stat-grid{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 18px;}
+  .stat-box{background:var(--sand);border-radius:8px;padding:10px 16px;min-width:110px;}
+  .stat-box .num{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--clay-dark);}
+  .stat-box .lbl{font-size:11px;color:var(--ink-soft);}
+
+  .invoice-block{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+  .invoice-block-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;}
+  .invoice-block-head .datum{font-weight:700;color:var(--clay-dark);}
+  .invoice-block-head .nr{font-size:12px;color:var(--ink-soft);}
+  .invoice-items{margin:8px 0 0;font-size:13px;}
+  .invoice-items .item-line{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line);}
+  .invoice-items .item-line:last-child{border-bottom:none;}
+  .invoice-block-actions{display:flex;gap:8px;margin-top:10px;}
+
+  table.article-table{width:100%;border-collapse:collapse;}
+  table.article-table th{
+    text-align:left;padding:8px 10px;font-size:12px;color:var(--ink-soft);border-bottom:2px solid var(--line);
+    cursor:pointer;user-select:none;
+  }
+  table.article-table td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13.5px;}
+  table.article-table tr:last-child td{border-bottom:none;}
+  .type-pill{font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--sand);color:var(--clay-dark);}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  .footnote{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--clay-dark);color:var(--porcelain);
+    padding:12px 22px;border-radius:8px;font-size:13.5px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:200;
+    opacity:0;transition:opacity .25s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  .processing-note{font-size:13px;color:var(--clay-dark);background:var(--sand);padding:10px 14px;border-radius:7px;margin-bottom:14px;}
+
+  @media (max-width:560px){
+    .review-card-head{flex-direction:column;align-items:flex-start;}
+    .customer-row{flex-direction:column;align-items:flex-start;}
+    .customer-row .bedrag{align-self:flex-end;margin-top:-22px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginscreen" style="max-width:380px;margin:60px auto;padding:0 16px;text-align:center;font-family:'Karla',sans-serif;">
+  <h1 style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#2C4F33;margin-bottom:6px;">Lotus Mineral Visagie</h1>
+  <p style="color:#6B655C;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:30px;">Klant- en Bestelhistorie</p>
+  <div style="background:#FFFFFF;border:1px solid #C0D9C4;border-radius:14px;padding:28px 20px;">
+    <p style="font-size:14px;color:#2C2C2A;margin-bottom:18px;">Log in met Google om je klantgegevens overal te kunnen gebruiken.</p>
+    <button id="google-login-btn" onclick="startGoogleLogin()" disabled style="width:100%;padding:12px;border-radius:10px;border:none;background:#3D6B45;color:#fff;font-family:'Karla',sans-serif;font-size:15px;font-weight:700;cursor:pointer;">Inloggen met Google</button>
+    <p id="login-status" style="font-size:12px;color:#6B655C;margin-top:14px;">Laden&hellip;</p>
+  </div>
+</div>
+
+<div id="mainapp" style="display:none;">
+
+<div id="migratebanner" style="display:none;max-width:1000px;margin:16px auto 0;padding:12px 16px;background:#FBF3DE;border:1px solid #E6C878;border-radius:8px;font-size:13px;">
+  Er zijn klantgegevens gevonden die eerder lokaal op dit apparaat waren opgeslagen.
+  <button class="btn btn-primary btn-small" onclick="migrateOldLocalData()" style="margin-left:8px;">Overzetten naar Google Drive</button>
+  <button class="btn btn-secondary btn-small" onclick="dismissMigrateBanner()">Negeren</button>
+</div>
+
+<header>
+  <h1>Klant- en Bestelhistorie</h1>
+  <p>Lotus Mineral Visagie &mdash; upload facturen en houd per klant bij wat ze besteld hebben</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="upload">Facturen uploaden</button>
+  <button class="tab-btn" data-tab="klanten">Klanten</button>
+  <button class="tab-btn" data-tab="artikelen">Artikelen</button>
+</nav>
+
+<div id="backup-banner">
+  <span id="backup-banner-text">Je hebt nog geen back-up gemaakt.</span>
+  <div class="banner-actions">
+    <button class="btn btn-primary btn-small" id="btn-banner-backup">Back-up nu downloaden</button>
+    <button class="btn btn-secondary btn-small" id="btn-banner-dismiss">Niet nu</button>
+  </div>
+</div>
+
+<main>
+
+  <!-- TAB: UPLOAD -->
+  <section id="tab-upload" class="tabpanel active">
+    <div class="dropzone">
+      <p>Upload een of meerdere PDF-facturen. Facturen uit je Workshop-kasse tool worden automatisch herkend; andere facturen worden zo goed mogelijk uitgelezen &mdash; controleer daarna even de gegevens voor je ze opslaat.</p>
+      <button class="btn btn-primary" id="btn-choose-files">PDF's kiezen</button>
+      <input type="file" id="pdf-input" accept="application/pdf" multiple>
+    </div>
+    <div id="processing-note"></div>
+    <div id="review-list"></div>
+    <div id="upload-empty" class="empty-state">
+      <h3>Nog geen facturen ge&uuml;pload</h3>
+      <p>Kies hierboven &eacute;&eacute;n of meerdere PDF's om te beginnen.</p>
+    </div>
+  </section>
+
+  <!-- TAB: KLANTEN -->
+  <section id="tab-klanten" class="tabpanel">
+    <div class="toolbar">
+      <button class="btn btn-secondary btn-small" id="btn-add-manual">+ Handmatig een bestelling toevoegen</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="customer-search" placeholder="Zoek op klantnaam&hellip;">
+    </div>
+    <div id="customer-list"></div>
+    <div id="klanten-empty" class="empty-state">
+      <h3>Nog geen klanten</h3>
+      <p>Upload eerst een factuur, of voeg handmatig een bestelling toe.</p>
+    </div>
+  </section>
+
+  <!-- TAB: ARTIKELEN -->
+  <section id="tab-artikelen" class="tabpanel">
+    <p class="intro">Overzicht van alle artikelen en workshops die zijn besteld, opgeteld over al je klanten.</p>
+    <div class="table-scroll">
+      <table class="article-table" id="article-table">
+        <thead>
+          <tr>
+            <th data-sort="naam">Artikel</th>
+            <th data-sort="type">Type</th>
+            <th data-sort="aantal">Aantal verkocht</th>
+            <th data-sort="omzet">Omzet</th>
+            <th data-sort="klanten">Klanten</th>
+          </tr>
+        </thead>
+        <tbody id="article-tbody"></tbody>
+      </table>
+    </div>
+    <div id="artikelen-empty" class="empty-state">
+      <h3>Nog geen artikelen</h3>
+      <p>Zodra je facturen zijn opgeslagen, verschijnt hier een overzicht.</p>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:24px;">
+    <h3 style="font-size:16px;margin-bottom:8px;">Back-up</h3>
+    <p class="footnote" style="margin-top:0;">Je gegevens worden bewaard in je browser op dit apparaat. Maak regelmatig een back-up, zeker voor je een grote opschoning doet of van apparaat wisselt.</p>
+    <div class="toolbar" style="margin-bottom:0;">
+      <button class="btn btn-secondary btn-small" id="btn-export-json">Back-up downloaden (JSON)</button>
+      <button class="btn btn-secondary btn-small" id="btn-export-excel">Exporteren als Excel (.xlsx)</button>
+      <button class="btn btn-secondary btn-small" id="btn-export-csv">Exporteren als CSV</button>
+      <button class="btn btn-secondary btn-small" id="btn-import-json">Back-up terugzetten</button>
+      <input type="file" id="import-input" accept="application/json">
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-content" id="modal-content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<datalist id="known-customers"></datalist>
+<datalist id="known-articles"></datalist>
+
+</div><!-- /mainapp -->
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ================================================================
+   GOOGLE DRIVE-SYNC
+   Zelfde opzet als de Workshop-kasse tool: inloggen met Google, data
+   wordt bewaard in de verborgen "appDataFolder" van dat Google-account
+   (niet zichtbaar in de gewone Drive-lijst van de klant, alleen voor
+   deze app zelf). Zo zijn de klantgegevens overal bereikbaar, maar
+   blijven ze wel priv\u00e9.
+================================================================= */
+const GOOGLE_CLIENT_ID = '473676385943-lj8lq8kf9dhfvfckejafgn8ckpmoe9c7.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+const DRIVE_FILENAME = 'lotus-klanten-bestelhistorie-data.json';
+
+let driveAccessToken = null;
+let driveFileId = null;
+let driveDataCache = null;
+let tokenClient = null;
+
+function setLoginStatus(msg){
+  const el = document.getElementById('login-status');
+  if (el) el.textContent = msg;
+}
+
+function initGoogleClient(){
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (tokenResponse) => {
+      if (tokenResponse && tokenResponse.access_token){
+        driveAccessToken = tokenResponse.access_token;
+        await onGoogleLoginSuccess();
+      } else {
+        setLoginStatus('Inloggen mislukt, probeer het opnieuw.');
+      }
+    }
+  });
+  setLoginStatus('');
+  document.getElementById('google-login-btn').disabled = false;
+}
+
+function startGoogleLogin(){
+  setLoginStatus('Bezig met inloggen\u2026');
+  if (tokenClient) tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+async function onGoogleLoginSuccess(){
+  setLoginStatus('Gegevens ophalen\u2026');
+  try{
+    await driveFindOrCreateFile();
+    document.getElementById('loginscreen').style.display = 'none';
+    document.getElementById('mainapp').style.display = 'block';
+    await startApp();
+    checkForOldLocalData();
+  }catch(err){
+    setLoginStatus('Er ging iets mis bij het ophalen van je gegevens. Probeer opnieuw in te loggen.');
+  }
+}
+
+function checkForOldLocalData(){
+  let hasOld = false;
+  try{ hasOld = !!localStorage.getItem(STORAGE_KEY); }catch(e){}
+  if (hasOld) document.getElementById('migratebanner').style.display = 'flex';
+}
+function dismissMigrateBanner(){ document.getElementById('migratebanner').style.display = 'none'; }
+
+async function migrateOldLocalData(){
+  const bevestigd = confirm('Dit voegt de klantgegevens die eerder lokaal op dit apparaat stonden toe aan je Google Drive-account. Bestaande klanten worden aangevuld, niet overschreven. Doorgaan?');
+  if (!bevestigd) return;
+  let oldRaw = null;
+  try{ oldRaw = localStorage.getItem(STORAGE_KEY); }catch(e){}
+  if (oldRaw){
+    try{
+      const oldDb = JSON.parse(oldRaw);
+      (oldDb.customers || []).forEach(oldCust => {
+        const target = getOrCreateCustomer(oldCust.naam, oldCust.adres);
+        (oldCust.invoices || []).forEach(inv => {
+          const bestaatAl = target.invoices.some(i =>
+            (inv.factuurnr && i.factuurnr === inv.factuurnr) || i.id === inv.id
+          );
+          if (!bestaatAl) target.invoices.push(inv);
+        });
+      });
+      await saveDB();
+      renderCustomerList();
+      renderArticleTable();
+    }catch(e){ alert('De oude gegevens konden niet worden gelezen.'); }
+  }
+  dismissMigrateBanner();
+  alert('Gegevens van dit apparaat zijn toegevoegd aan je Google Drive-account.');
+}
+
+async function driveFindOrCreateFile(){
+  const q = encodeURIComponent("name='" + DRIVE_FILENAME + "'");
+  const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=' + q + '&fields=files(id,name)', {
+    headers: { Authorization: 'Bearer ' + driveAccessToken }
+  });
+  if (res.status === 401) throw new Error('unauthorized');
+  const data = await res.json();
+  if (data.files && data.files.length > 0){
+    driveFileId = data.files[0].id;
+    return;
+  }
+  const metadata = { name: DRIVE_FILENAME, parents: ['appDataFolder'] };
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(metadata)
+  });
+  const createData = await createRes.json();
+  driveFileId = createData.id;
+  await driveWriteRaw({});
+}
+
+async function driveReadRaw(){
+  const res = await fetch('https://www.googleapis.com/drive/v3/files/' + driveFileId + '?alt=media', {
+    headers: { Authorization: 'Bearer ' + driveAccessToken }
+  });
+  if (!res.ok) return {};
+  try{ return await res.json(); }catch(e){ return {}; }
+}
+
+async function driveWriteRaw(obj){
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + driveFileId + '?uploadType=media', {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + driveAccessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify(obj)
+  });
+  if (res.status === 401) throw new Error('unauthorized');
+}
+
+async function driveRetryOnAuthError(fn){
+  try{
+    return await fn();
+  }catch(err){
+    if (err && err.message === 'unauthorized' && tokenClient){
+      return new Promise((resolve) => {
+        tokenClient.callback = async (tokenResponse) => {
+          if (tokenResponse && tokenResponse.access_token){
+            driveAccessToken = tokenResponse.access_token;
+            try{ resolve(await fn()); }catch(e){ resolve(null); }
+          } else { resolve(null); }
+        };
+        tokenClient.requestAccessToken({ prompt: '' });
+      });
+    }
+    alert('Opslaan/laden mislukt. Controleer je internetverbinding en probeer het opnieuw.');
+    return null;
+  }
+}
+
+function waitForGoogleLib(){
+  if (window.google && google.accounts && google.accounts.oauth2){
+    initGoogleClient();
+  } else {
+    setTimeout(waitForGoogleLib, 200);
+  }
+}
+
+/* ================================================================
+   OPSLAG-ABSTRACTIE
+   Prioriteit: Google Drive (zodra ingelogd) > window.storage
+   (Claude-artifact-omgeving) > localStorage (fallback, bv. zolang
+   nog niet is ingelogd, of wanneer dit bestand helemaal los wordt
+   gebruikt).
+================================================================= */
+const STORAGE_KEY = 'lotus-klanten-facturen-v1';
+const BACKUP_META_KEY = 'lotus-klanten-backup-meta-v1';
+const hasClaudeStorage = (typeof window.storage !== 'undefined') && window.storage && typeof window.storage.get === 'function';
+
+async function storageGet(key){
+  if (driveAccessToken){
+    return driveRetryOnAuthError(async () => {
+      if (driveDataCache === null) driveDataCache = await driveReadRaw();
+      return (key in driveDataCache) ? driveDataCache[key] : null;
+    });
+  } else if (hasClaudeStorage){
+    try{ const r = await window.storage.get(key, false); return r ? r.value : null; }catch(e){ return null; }
+  } else {
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  }
+}
+async function storageSet(key, value){
+  if (driveAccessToken){
+    return driveRetryOnAuthError(async () => {
+      if (driveDataCache === null) driveDataCache = await driveReadRaw();
+      driveDataCache[key] = value;
+      await driveWriteRaw(driveDataCache);
+      return true;
+    });
+  } else if (hasClaudeStorage){
+    try{ await window.storage.set(key, value, false); return true; }catch(e){ return false; }
+  } else {
+    try{ localStorage.setItem(key, value); return true; }catch(e){ return false; }
+  }
+}
+
+/* ================================================================
+   DATAMODEL
+================================================================= */
+let db = { customers: [] };
+
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+async function loadDB(){
+  const raw = await storageGet(STORAGE_KEY);
+  if (raw){
+    try{ const parsed = JSON.parse(raw); if (parsed && Array.isArray(parsed.customers)) db = parsed; }catch(e){ /* laat db leeg bij corrupte data */ }
+  }
+}
+async function saveDB(){ await storageSet(STORAGE_KEY, JSON.stringify(db)); refreshDatalists(); updateBackupBanner(); }
+
+function findCustomerByName(naam){
+  const norm = naam.trim().toLowerCase();
+  return db.customers.find(c => c.naam.trim().toLowerCase() === norm);
+}
+function getOrCreateCustomer(naam, adres){
+  let c = findCustomerByName(naam);
+  if (!c){ c = { id: uid('c'), naam: naam.trim(), adres: (adres||'').trim(), invoices: [] }; db.customers.push(c); }
+  else if (adres && adres.trim() && !c.adres){ c.adres = adres.trim(); }
+  return c;
+}
+
+/* ================================================================
+   HULPFUNCTIES: datum & bedrag
+================================================================= */
+function dutchDateToISO(str){
+  if (!str) return '';
+  let m = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  return '';
+}
+function isoToDutchDate(iso){
+  const m = (iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : (iso || '');
+}
+function formatEuro(n){
+  if (n === null || n === undefined || isNaN(n)) return '\u2014';
+  return '\u20ac ' + Number(n).toFixed(2).replace('.', ',');
+}
+function esc(s){
+  return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayISO(){ const d = new Date(); return d.toISOString().slice(0,10); }
+
+/* ================================================================
+   PDF-TEKSTEXTRACTIE
+   Groepeert tekstfragmenten per regel (o.b.v. y-positie) en geeft
+   een array van { text } terug, in leesvolgorde van boven naar onder.
+================================================================= */
+async function extractLinesFromPDF(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const allLines = [];
+  for (let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const lineMap = new Map();
+    content.items.forEach(item => {
+      if (!item.str || !item.str.trim()) return;
+      const y = Math.round(item.transform[5]);
+      const x = item.transform[4];
+      if (!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y).push({ x, text: item.str });
+    });
+    // Native PDF-co\u00f6rdinaten lopen van onder naar boven -> aflopend sorteren geeft boven-naar-onder
+    const ys = Array.from(lineMap.keys()).sort((a,b) => b - a);
+    ys.forEach(y => {
+      const parts = lineMap.get(y).sort((a,b) => a.x - b.x);
+      const text = parts.map(pt => pt.text).join(' ').replace(/\s+/g,' ').trim();
+      if (text) allLines.push({ text });
+    });
+  }
+  return allLines;
+}
+
+/* ================================================================
+   PARSER 1: specifiek voor facturen uit de Workshop-kasse tool
+   (exacte lay-out van buildInvoicePDF() in Workshop-kasse/index.html)
+================================================================= */
+function looksLikeAddressLine(t){
+  t = t.trim();
+  if (/^\d{4}\s?[A-Za-z]{2}\b/.test(t)) return true;      // postcode NL
+  if (/@/.test(t)) return true;                            // e-mail
+  if (/^(0|\+31)[\d\s-]{8,}/.test(t)) return true;          // telefoonnummer
+  if (/\d/.test(t) && t.split(' ').length <= 5) return true; // straat+nr, postcode+plaats, ib
+  return false;
+}
+function findClientBlockBackward(lines, headerIdx, factuurIdx){
+  let i = headerIdx - 1;
+  const addressLines = [];
+  while (i > factuurIdx && looksLikeAddressLine(lines[i].text)){
+    addressLines.unshift(lines[i].text.trim());
+    i--;
+  }
+  let naam = '';
+  if (i > factuurIdx){
+    const t = lines[i].text.trim();
+    if (t && t.length < 60 && !/Omschrijving/i.test(t)) naam = t;
+  }
+  return { naam, adres: addressLines.join(', ') };
+}
+function parseWorkshopKasseInvoice(lines){
+  const result = { klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false };
+  const headerIdx = lines.findIndex(l => /Omschrijving/i.test(l.text) && /Aantal/i.test(l.text) && /Bedrag/i.test(l.text) && !/TOTAAL/i.test(l.text));
+  if (headerIdx === -1) return result;
+  result.matched = true;
+
+  const factuurIdx = lines.findIndex(l => /^FACTUUR$/i.test(l.text.trim()));
+  if (factuurIdx !== -1){
+    for (let i = factuurIdx + 1; i < headerIdx && i < factuurIdx + 3; i++){
+      const t = lines[i].text.trim();
+      if (t.split(' ').length >= 3) break; // waarschijnlijk bedrijfsnaam
+      if (/\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/.test(t) || /\d{4}-\d{1,2}-\d{1,2}/.test(t)){
+        result.datum = t;
+      } else if (!result.factuurnr){
+        result.factuurnr = t;
+      }
+    }
+  }
+
+  const clientBlock = findClientBlockBackward(lines, headerIdx, factuurIdx);
+  result.klantnaam = clientBlock.naam;
+  result.adres = clientBlock.adres;
+
+  const itemLineRegex = /^(.+?)\s+(\d+)\s+EUR\s*([\d.,]+)\s+(\d+)%\s+EUR\s*([\d.,]+)\s*$/i;
+  for (let i = headerIdx + 1; i < lines.length; i++){
+    const t = lines[i].text.trim();
+    if (/^Totaal\b/i.test(t) || /Bedrag excl\. btw/i.test(t) || /Waarvan btw/i.test(t) || /^-?EUR/i.test(t)) break;
+    const m = t.match(itemLineRegex);
+    if (m){
+      let naam = m[1].trim();
+      let type = 'artikel';
+      if (/\(workshop\)\s*$/i.test(naam)){ type = 'workshop'; naam = naam.replace(/\s*\(workshop\)\s*$/i,'').trim(); }
+      result.items.push({ naam, aantal: parseInt(m[2],10), prijs: parseFloat(m[3].replace(',','.')), totaal: parseFloat(m[5].replace(',','.')), type });
+    }
+  }
+  const totaalLine = lines.find(l => /^Totaal\b/i.test(l.text.trim()));
+  if (totaalLine){
+    const m = totaalLine.text.match(/EUR\s*([\d.,]+)/i);
+    if (m) result.totaal = parseFloat(m[1].replace(',','.'));
+  }
+  return result;
+}
+
+/* ================================================================
+   PARSER 2: generieke fallback voor facturen van elders
+   (webshop, leverancier, boekhoudpakket, etc.)
+================================================================= */
+function parseEuroNumber(str){
+  str = str.replace(/[\u20ac\s]/g,'');
+  if (str.includes('.') && str.includes(',')) str = str.replace(/\./g,'').replace(',','.');
+  else if (str.includes(',')) str = str.replace(',','.');
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+function parseGenericInvoice(lines){
+  const result = { klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false };
+  const fullText = lines.map(l => l.text).join('\n');
+
+  const dateMatch = fullText.match(/\b(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})\b/);
+  if (dateMatch) result.datum = dateMatch[1];
+
+  const labelIdx = lines.findIndex(l => /(?:Klant|T\.a\.v\.|Factuuradres|Naam)\s*:?\s*[A-Za-z\u00c0-\u00ff]/i.test(l.text));
+  const labelMatch = fullText.match(/(?:Klant|T\.a\.v\.|Factuuradres|Naam)\s*:?\s*([A-Za-z\u00c0-\u00ff' .-]{3,40})/i);
+  if (labelMatch) result.klantnaam = labelMatch[1].trim();
+  if (labelIdx !== -1){
+    const addressParts = [];
+    for (let i = labelIdx + 1; i < Math.min(labelIdx + 4, lines.length); i++){
+      if (looksLikeAddressLine(lines[i].text) && !/@/.test(lines[i].text)) addressParts.push(lines[i].text.trim());
+      else break;
+    }
+    result.adres = addressParts.join(', ');
+  }
+
+  const factuurnrMatch = fullText.match(/Factuur(?:nummer|nr)?\.?\s*:?\s*#?\s*([A-Za-z0-9.\-\/]{3,20})/i);
+  if (factuurnrMatch) result.factuurnr = factuurnrMatch[1].trim();
+
+  const skipRegex = /^(totaalbedrag|totaal|subtotaal|btw|vat|tax|total|factuur|datum|klant|iban|kvk|pagina|page)/i;
+  const priceRegex = /(?:\u20ac\s?)?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\b/g;
+
+  for (const line of lines){
+    const t = line.text.trim();
+    if (!t || skipRegex.test(t)) continue;
+    const matches = [...t.matchAll(priceRegex)];
+    if (matches.length === 0) continue;
+    const prices = matches.map(m => parseEuroNumber(m[1])).filter(n => n !== null);
+    if (prices.length === 0) continue;
+
+    let stripped = t;
+    matches.forEach(m => { stripped = stripped.replace(m[0], ''); });
+    stripped = stripped.replace(/\u20ac/g,'').trim();
+
+    const qtyMatch = stripped.match(/(?:^|\s)(\d{1,3})\s*(?:x|st\.?|stuks)?(?:\s|$)/i);
+    const aantal = qtyMatch ? parseInt(qtyMatch[1],10) : 1;
+    let naam = stripped;
+    if (qtyMatch) naam = naam.replace(qtyMatch[0], ' ').trim();
+    naam = naam.replace(/\s{2,}/g,' ').trim();
+    if (!naam) continue;
+
+    const totaal = prices[prices.length - 1];
+    const prijs = prices.length >= 2 ? prices[prices.length - 2] : totaal;
+    result.items.push({ naam, aantal, prijs, totaal, type:'artikel' });
+  }
+
+  const totalLine = lines.find(l => /^(totaal|total)(?!.*excl)/i.test(l.text.trim()));
+  if (totalLine){
+    const m = [...totalLine.text.matchAll(priceRegex)];
+    if (m.length) result.totaal = parseEuroNumber(m[m.length-1][1]);
+  }
+  return result;
+}
+
+/* ================================================================
+   PARSER 3: facturen met "Aan:"-adresblok en kolommen
+   OMSCHRIJVING / AANTAL / PRIJS / TOTAAL BEDRAG (zonder aparte btw-kolom)
+================================================================= */
+const RIGHT_COLUMN_LABELS = ['Factuurdatum:','Betaaltermijn:','Vervaldatum:','Totaal incl btw:','Totaal incl. btw:','Totaal excl btw:','Totaalbedrag:','Totaal:','IBAN:','KvK','Btw-nummer:','BTW:'];
+function stripRightColumnLabel(line){
+  let cut = line.length;
+  const lower = line.toLowerCase();
+  RIGHT_COLUMN_LABELS.forEach(label => {
+    const idx = lower.indexOf(label.toLowerCase());
+    if (idx !== -1 && idx < cut) cut = idx;
+  });
+  return line.slice(0, cut).trim();
+}
+function parseAanFormatInvoice(lines){
+  const result = { klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false };
+  const headerIdx = lines.findIndex(l => /OMSCHRIJVING/i.test(l.text) && /AANTAL/i.test(l.text) && /PRIJS/i.test(l.text) && /TOTAAL/i.test(l.text));
+  const aanIdx = lines.findIndex(l => /^Aan:/i.test(l.text.trim()));
+  if (headerIdx === -1 || aanIdx === -1 || aanIdx >= headerIdx) return result;
+  result.matched = true;
+
+  const factuurLine = lines.find(l => /^FACTUUR\b/i.test(l.text.trim()));
+  if (factuurLine){
+    const m = factuurLine.text.trim().match(/^FACTUUR\s+(\S+)/i);
+    if (m) result.factuurnr = m[1];
+  }
+
+  let naam = '';
+  const addressParts = [];
+  let firstLeft = stripRightColumnLabel(lines[aanIdx].text.replace(/^Aan:\s*/i, ''));
+  if (firstLeft) naam = firstLeft;
+  for (let i = aanIdx + 1; i < headerIdx; i++){
+    const left = stripRightColumnLabel(lines[i].text);
+    if (!left) continue;
+    if (!naam) naam = left; else addressParts.push(left);
+  }
+  result.klantnaam = naam;
+  result.adres = addressParts.join(', ');
+
+  const dateMatch = lines.slice(aanIdx, headerIdx).map(l => l.text).join(' ').match(/Factuurdatum:\s*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i);
+  if (dateMatch) result.datum = dateMatch[1];
+
+  const itemLineRegex = /^(.+?)\s+(\d+)\s+\u20ac?\s*([\d.,]+)\s+\u20ac?\s*([\d.,]+)\s*$/;
+  for (let i = headerIdx + 1; i < lines.length; i++){
+    const t = lines[i].text.trim();
+    if (!t || t === '-') continue;
+    if (/^TOTAALBEDRAG/i.test(t) || /^\u00cdncl\.?\s*\d+%/i.test(t) || /^Incl\.?\s*\d+%/i.test(t) || /^Betaalgegevens/i.test(t) || /^Betaling via/i.test(t)) break;
+    const m = t.match(itemLineRegex);
+    if (m){
+      result.items.push({ naam: m[1].trim(), aantal: parseInt(m[2],10), prijs: parseEuroNumber(m[3]), totaal: parseEuroNumber(m[4]), type:'artikel' });
+    }
+  }
+  const totLine = lines.find(l => /^TOTAALBEDRAG/i.test(l.text.trim()));
+  if (totLine){
+    const m = [...totLine.text.matchAll(/([\d.,]+)/g)];
+    if (m.length) result.totaal = parseEuroNumber(m[m.length-1][1]);
+  }
+  return result;
+}
+
+/* ================================================================
+   PARSER 4: webshop-achtige facturen met klant- en bedrijfsblok
+   naast elkaar, kolommen Item / Artikelnummer / Aantal / Per stuk / Prijs
+================================================================= */
+const DUTCH_MONTHS = { jan:1, feb:2, mrt:3, apr:4, mei:5, jun:6, jul:7, aug:8, sep:9, okt:10, nov:11, dec:12 };
+function dutchMonthNameToISO(str){
+  const m = str.match(/(\d{1,2})\s+([A-Za-z]+)\.?\s+(\d{4})/);
+  if (!m) return '';
+  const month = DUTCH_MONTHS[m[2].toLowerCase().slice(0,3)];
+  if (!month) return '';
+  return `${m[3]}-${String(month).padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+// Eigen bedrijfsgegevens van Lotus Mineral Visagie, gebruikt om ze uit
+// samengevoegde regels (klant + bedrijf naast elkaar) weg te filteren.
+const OWN_COMPANY_PATTERNS = [
+  /lotus\s*mineral\s*visagie/i,
+  /de\s*roskam\s*48/i,
+  /4112\s*hc\s*beusichem/i,
+  /info@lotusmineralvisagie\.nl/i,
+  /lotusmineralvisagie\.nl/i,
+  /(?:\+?31\s*6|06)[\s-]?17342204/i,
+  /94775400/,
+  /NL0*05108540B49/i
+];
+function stripOwnCompanyInfo(line){
+  let t = line;
+  OWN_COMPANY_PATTERNS.forEach(re => { t = t.replace(re, ''); });
+  t = t.replace(/\s{2,}/g,' ').trim();
+  t = t.replace(/^(.+?)\s+\1$/, '$1'); // dubbele identieke tekst (bv. "Nederland Nederland")
+  return t;
+}
+function parseWebshopFormatInvoice(lines){
+  const result = { klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false };
+  const headerIdx = lines.findIndex(l => /Artikelnummer/i.test(l.text) && /Aantal/i.test(l.text));
+  if (headerIdx === -1) return result;
+  result.matched = true;
+
+  const datumLabelIdx = lines.findIndex(l => /\bDatum\b/i.test(l.text) && /\bFactuurnummer\b/i.test(l.text));
+  const blockEnd = (datumLabelIdx !== -1 && datumLabelIdx < headerIdx) ? datumLabelIdx : headerIdx;
+  const startIdx = /^(factuur|invoice)$/i.test((lines[0]||{text:''}).text.trim()) ? 1 : 0;
+
+  let naam = '';
+  const addressParts = [];
+  for (let i = startIdx; i < blockEnd; i++){
+    const rawLine = lines[i].text.trim();
+    if (!rawLine) continue;
+    if (/@/.test(rawLine)) continue;                          // e-mailregel (van klant of van onszelf) altijd overslaan
+    if (/^\+?\d[\d\s-]{7,}$/.test(rawLine)) continue;          // telefoonregel overslaan
+    const cleaned = stripOwnCompanyInfo(rawLine);
+    if (!cleaned) continue;
+    if (!naam) naam = cleaned; else addressParts.push(cleaned);
+  }
+  result.klantnaam = naam;
+  result.adres = addressParts.join(', ');
+
+  if (datumLabelIdx !== -1 && lines[datumLabelIdx+1]){
+    const valueLine = lines[datumLabelIdx+1].text.trim();
+    const dm = valueLine.match(/\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}|\d{1,2}\s+[A-Za-z]+\.?\s+\d{4}/);
+    if (dm){
+      result.datum = /^\d{1,2}[-\/]/.test(dm[0]) ? dm[0] : (dutchMonthNameToISO(dm[0]) || '');
+      const rest = valueLine.replace(dm[0], '').trim();
+      if (rest) result.factuurnr = rest;
+    }
+  }
+
+  const itemLineRegex = /^(.+?)\s+(\d+)\s+\u20ac\s*([\d.,]+)\s+\u20ac\s*([\d.,]+)\s*$/;
+  const stopRegex = /^Verzendkosten\b|^Totaalbedrag\b|^Inclusief\s*\d+%|^Betaalmethode\b/i;
+  for (let i = headerIdx + 1; i < lines.length; i++){
+    const t = lines[i].text.trim();
+    if (!t) continue;
+    if (stopRegex.test(t)) break;
+    const m = t.match(itemLineRegex);
+    if (m){
+      let naamItem = m[1].trim();
+      // Lange artikelomschrijvingen lopen soms door op de volgende regel
+      // (bv. "night cream 60 ml"); die vervolgregel bevat zelf geen prijs.
+      let j = i + 1;
+      while (j < lines.length){
+        const nt = lines[j].text.trim();
+        if (!nt || stopRegex.test(nt) || itemLineRegex.test(nt)) break;
+        naamItem += ' ' + nt;
+        i = j;
+        j++;
+      }
+      result.items.push({ naam: naamItem.trim(), aantal: parseInt(m[2],10), prijs: parseEuroNumber(m[3]), totaal: parseEuroNumber(m[4]), type:'artikel' });
+    }
+  }
+  const totLine = lines.find(l => /^Totaalbedrag/i.test(l.text.trim()));
+  if (totLine){
+    const m = [...totLine.text.matchAll(/([\d.,]+)/g)];
+    if (m.length) result.totaal = parseEuroNumber(m[m.length-1][1]);
+  }
+  return result;
+}
+
+/* ================================================================
+   UPLOAD & VERWERKING
+================================================================= */
+const reviewListEl = document.getElementById('review-list');
+const processingNoteEl = document.getElementById('processing-note');
+
+document.getElementById('btn-choose-files').addEventListener('click', () => document.getElementById('pdf-input').click());
+document.getElementById('pdf-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  for (const file of files){ await processUploadedFile(file); }
+  updateEmptyStates();
+});
+
+async function processUploadedFile(file){
+  processingNoteEl.innerHTML = `<div class="processing-note">Bezig met verwerken van "${esc(file.name)}"&hellip;</div>`;
+  try{
+    const buf = await file.arrayBuffer();
+    const lines = await extractLinesFromPDF(buf);
+    const rawText = lines.map(l => l.text).join('\n');
+    const candidates = [
+      parseWorkshopKasseInvoice(lines),
+      parseAanFormatInvoice(lines),
+      parseWebshopFormatInvoice(lines),
+      parseGenericInvoice(lines)
+    ];
+    let parsed = candidates[0];
+    function score(cand){ return (cand.matched ? 1000 : 0) + cand.items.length; }
+    for (const cand of candidates){
+      if (score(cand) > score(parsed)) parsed = cand;
+    }
+    addReviewCard({ ...parsed, rawText, bestandsnaam: file.name });
+  }catch(err){
+    addReviewCard({
+      klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false,
+      rawText: 'Kon dit bestand niet automatisch lezen (' + (err && err.message ? err.message : 'onbekende fout') + '). Vul de gegevens hieronder handmatig in.',
+      bestandsnaam: file.name
+    });
+  }finally{
+    processingNoteEl.innerHTML = '';
+  }
+}
+
+function addReviewCard(draft){
+  const wrapper = document.createElement('div');
+  buildInvoiceForm(wrapper, draft, {
+    mode: 'review',
+    onSave: (data) => {
+      saveInvoiceFromForm(data, null, null);
+      wrapper.remove();
+      updateEmptyStates();
+      showToast(`Factuur opgeslagen bij ${data.klantnaam}`);
+    },
+    onCancel: () => { wrapper.remove(); updateEmptyStates(); }
+  });
+  reviewListEl.appendChild(wrapper);
+  updateEmptyStates();
+}
+
+/* ================================================================
+   HERBRUIKBAAR FACTUUR-FORMULIER (upload-review, handmatig, bewerken)
+================================================================= */
+function buildInvoiceForm(container, draft, opts){
+  const isoDatum = dutchDateToISO(draft.datum) || (opts.mode === 'manual' ? todayISO() : '');
+  const card = document.createElement('div');
+  card.className = 'review-card';
+
+  const badge = draft.matched
+    ? '<span class="badge badge-ok">Factuur automatisch herkend</span>'
+    : (opts.mode === 'manual' ? '' : '<span class="badge badge-warn">Automatisch met beperkte herkenning \u2014 controleer goed</span>');
+
+  card.innerHTML = `
+    <div class="review-card-head">
+      <div>${badge}</div>
+      ${draft.bestandsnaam ? `<span class="filename">${esc(draft.bestandsnaam)}</span>` : ''}
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Klantnaam</label>
+        <input type="text" class="f-klantnaam" list="known-customers" value="${esc(draft.klantnaam)}" placeholder="Naam van de klant">
+      </div>
+      <div class="form-field">
+        <label>Adres</label>
+        <input type="text" class="f-adres" value="${esc(draft.adres || '')}" placeholder="Straat, postcode en plaats">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Datum</label>
+        <input type="date" class="f-datum" value="${esc(isoDatum)}">
+      </div>
+      <div class="form-field">
+        <label>Factuurnummer</label>
+        <input type="text" class="f-factuurnr" value="${esc(draft.factuurnr)}" placeholder="optioneel">
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="items-table">
+        <thead>
+          <tr><th style="width:40%">Artikel</th><th>Aantal</th><th>Prijs p/st</th><th>Totaal</th><th>Type</th><th></th></tr>
+        </thead>
+        <tbody class="items-body"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-secondary btn-small btn-add-row" type="button">+ Regel toevoegen</button>
+    ${draft.rawText ? '<button class="raw-text-toggle" type="button">Bekijk ruwe tekst uit PDF</button><div class="raw-text"></div>' : ''}
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-small btn-cancel" type="button">${opts.mode === 'edit' ? 'Annuleren' : 'Negeren'}</button>
+      <button class="btn btn-primary btn-small btn-save" type="button">Opslaan bij klant</button>
+    </div>
+  `;
+
+  const tbody = card.querySelector('.items-body');
+  function addItemRow(item){
+    item = item || { naam:'', aantal:1, prijs:0, totaal:0, type:'artikel' };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="i-naam" list="known-articles" value="${esc(item.naam)}"></td>
+      <td class="col-aantal"><input type="number" class="i-aantal" min="0" step="1" value="${item.aantal}"></td>
+      <td class="col-prijs"><input type="number" class="i-prijs" min="0" step="0.01" value="${item.prijs}"></td>
+      <td class="col-totaal"><input type="number" class="i-totaal" min="0" step="0.01" value="${item.totaal}"></td>
+      <td class="col-type">
+        <select class="i-type">
+          <option value="artikel" ${item.type==='artikel'?'selected':''}>Artikel</option>
+          <option value="workshop" ${item.type==='workshop'?'selected':''}>Workshop</option>
+        </select>
+      </td>
+      <td><button type="button" class="row-del" title="Regel verwijderen">&times;</button></td>
+    `;
+    const aantalInp = tr.querySelector('.i-aantal');
+    const prijsInp = tr.querySelector('.i-prijs');
+    const totaalInp = tr.querySelector('.i-totaal');
+    function recalc(){
+      const a = parseFloat(aantalInp.value) || 0;
+      const p = parseFloat(prijsInp.value) || 0;
+      totaalInp.value = (a * p).toFixed(2);
+    }
+    aantalInp.addEventListener('input', recalc);
+    prijsInp.addEventListener('input', recalc);
+    tr.querySelector('.row-del').addEventListener('click', () => tr.remove());
+    tbody.appendChild(tr);
+  }
+  (draft.items && draft.items.length ? draft.items : [null]).forEach(addItemRow);
+  if (!draft.items || draft.items.length === 0) tbody.innerHTML = '';
+  if (!draft.items || draft.items.length === 0) addItemRow(null);
+
+  card.querySelector('.btn-add-row').addEventListener('click', () => addItemRow(null));
+
+  if (draft.rawText){
+    const toggle = card.querySelector('.raw-text-toggle');
+    const rawDiv = card.querySelector('.raw-text');
+    rawDiv.textContent = draft.rawText;
+    toggle.addEventListener('click', () => rawDiv.classList.toggle('show'));
+  }
+
+  card.querySelector('.btn-cancel').addEventListener('click', () => opts.onCancel && opts.onCancel());
+  card.querySelector('.btn-save').addEventListener('click', () => {
+    const klantnaam = card.querySelector('.f-klantnaam').value.trim();
+    if (!klantnaam){ alert('Vul een klantnaam in voor je opslaat.'); return; }
+    const adres = card.querySelector('.f-adres').value.trim();
+    const datum = card.querySelector('.f-datum').value || todayISO();
+    const factuurnr = card.querySelector('.f-factuurnr').value.trim();
+    const items = Array.from(tbody.querySelectorAll('tr')).map(tr => ({
+      naam: tr.querySelector('.i-naam').value.trim(),
+      aantal: parseFloat(tr.querySelector('.i-aantal').value) || 0,
+      prijs: parseFloat(tr.querySelector('.i-prijs').value) || 0,
+      totaal: parseFloat(tr.querySelector('.i-totaal').value) || 0,
+      type: tr.querySelector('.i-type').value
+    })).filter(it => it.naam);
+    if (items.length === 0){ alert('Voeg minstens \u00e9\u00e9n artikel of workshop toe voor je opslaat.'); return; }
+    const invoiceTotaal = items.reduce((s,it) => s + it.totaal, 0);
+    opts.onSave({ klantnaam, adres, datum, factuurnr, items, totaal: invoiceTotaal });
+  });
+
+  container.appendChild(card);
+}
+
+function saveInvoiceFromForm(data, existingCustomerId, existingInvoiceId){
+  if (existingInvoiceId){
+    const oldCustomer = db.customers.find(c => c.invoices.some(i => i.id === existingInvoiceId));
+    if (oldCustomer){
+      const idx = oldCustomer.invoices.findIndex(i => i.id === existingInvoiceId);
+      const invoiceRecord = oldCustomer.invoices[idx];
+      const targetCustomer = getOrCreateCustomer(data.klantnaam, data.adres);
+      invoiceRecord.datum = data.datum;
+      invoiceRecord.factuurnr = data.factuurnr;
+      invoiceRecord.items = data.items;
+      invoiceRecord.totaal = data.totaal;
+      if (targetCustomer.id !== oldCustomer.id){
+        oldCustomer.invoices.splice(idx, 1);
+        targetCustomer.invoices.push(invoiceRecord);
+        if (oldCustomer.invoices.length === 0) db.customers = db.customers.filter(c => c.id !== oldCustomer.id);
+      }
+    }
+  } else {
+    const customer = getOrCreateCustomer(data.klantnaam, data.adres);
+    customer.invoices.push({
+      id: uid('i'), datum: data.datum, factuurnr: data.factuurnr, items: data.items, totaal: data.totaal,
+      bron: data.bron || 'upload'
+    });
+  }
+  saveDB();
+  renderCustomerList();
+  renderArticleTable();
+}
+
+/* ================================================================
+   HANDMATIG TOEVOEGEN
+================================================================= */
+document.getElementById('btn-add-manual').addEventListener('click', () => {
+  openModal((content, close) => {
+    content.innerHTML = '<h2 style="margin-bottom:14px;">Bestelling handmatig toevoegen</h2><div id="manual-form-host"></div>';
+    buildInvoiceForm(document.getElementById('manual-form-host'), { klantnaam:'', adres:'', datum:'', factuurnr:'', items:[], totaal:null, matched:false }, {
+      mode: 'manual',
+      onSave: (data) => { saveInvoiceFromForm({ ...data, bron:'handmatig' }, null, null); close(); showToast(`Bestelling opgeslagen bij ${data.klantnaam}`); },
+      onCancel: () => close()
+    });
+  });
+});
+
+/* ================================================================
+   KLANTEN-TAB
+================================================================= */
+const customerListEl = document.getElementById('customer-list');
+document.getElementById('customer-search').addEventListener('input', renderCustomerList);
+
+function renderCustomerList(){
+  const q = document.getElementById('customer-search').value.trim().toLowerCase();
+  const list = db.customers
+    .map(c => ({ c, totaal: c.invoices.reduce((s,i) => s + (i.totaal||0), 0), laatste: c.invoices.reduce((max,i) => i.datum > max ? i.datum : max, '') }))
+    .filter(({c}) => !q || c.naam.toLowerCase().includes(q))
+    .sort((a,b) => a.c.naam.localeCompare(b.c.naam, 'nl'));
+
+  customerListEl.innerHTML = '';
+  list.forEach(({c, totaal, laatste}) => {
+    const row = document.createElement('div');
+    row.className = 'customer-row';
+    row.innerHTML = `
+      <div>
+        <div class="naam">${esc(c.naam)}</div>
+        <div class="meta">${c.invoices.length} ${c.invoices.length === 1 ? 'bestelling' : 'bestellingen'}${laatste ? ' \u00b7 laatst op ' + esc(isoToDutchDate(laatste)) : ''}${c.adres ? ' \u00b7 ' + esc(c.adres) : ''}</div>
+      </div>
+      <div class="row-right">
+        <div class="bedrag">${formatEuro(totaal)}</div>
+        <button type="button" class="btn-row-delete" title="Klant verwijderen">&times;</button>
+      </div>
+    `;
+    row.querySelector('.btn-row-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`${c.naam} en alle ${c.invoices.length} bestelling(en) verwijderen? Dit kan niet ongedaan worden gemaakt.`)){
+        db.customers = db.customers.filter(x => x.id !== c.id);
+        saveDB(); renderCustomerList(); renderArticleTable();
+      }
+    });
+    row.addEventListener('click', () => openCustomerDetail(c.id));
+    customerListEl.appendChild(row);
+  });
+  document.getElementById('klanten-empty').style.display = (db.customers.length === 0) ? 'block' : 'none';
+  if (db.customers.length > 0 && list.length === 0){
+    customerListEl.innerHTML = '<div class="empty-state"><p>Geen klanten gevonden voor deze zoekopdracht.</p></div>';
+  }
+}
+
+function openCustomerDetail(customerId){
+  openModal((content, close) => {
+    renderCustomerDetail(content, customerId, close);
+  });
+}
+
+function renderCustomerDetail(content, customerId, close){
+  const c = db.customers.find(x => x.id === customerId);
+  if (!c){ close(); return; }
+  const sorted = [...c.invoices].sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
+  const totaal = c.invoices.reduce((s,i) => s + (i.totaal||0), 0);
+  const gemiddeld = c.invoices.length ? totaal / c.invoices.length : 0;
+
+  content.innerHTML = `
+    <div class="customer-detail-head">
+      <div id="customer-name-block">
+        <h2>${esc(c.naam)}</h2>
+        ${c.adres ? `<p class="customer-address">${esc(c.adres)}</p>` : '<p class="customer-address customer-address-empty">Geen adres bekend</p>'}
+      </div>
+      <button class="btn btn-secondary btn-small" id="btn-edit-customer">Naam/adres bewerken</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num">${c.invoices.length}</div><div class="lbl">Bestellingen</div></div>
+      <div class="stat-box"><div class="num">${formatEuro(totaal)}</div><div class="lbl">Totaal besteed</div></div>
+      <div class="stat-box"><div class="num">${formatEuro(gemiddeld)}</div><div class="lbl">Gemiddeld</div></div>
+    </div>
+    <div id="invoice-blocks"></div>
+    <div class="card-actions" style="justify-content:space-between;margin-top:16px;">
+      <button class="btn btn-danger btn-small" id="btn-del-customer">Klant verwijderen</button>
+      <button class="btn btn-secondary btn-small" id="btn-close-detail">Sluiten</button>
+    </div>
+  `;
+
+  content.querySelector('#btn-edit-customer').addEventListener('click', () => {
+    const nameBlock = content.querySelector('#customer-name-block');
+    nameBlock.innerHTML = `
+      <div class="form-row" style="margin-bottom:8px;">
+        <div class="form-field">
+          <label>Naam</label>
+          <input type="text" id="edit-naam" value="${esc(c.naam)}">
+        </div>
+        <div class="form-field">
+          <label>Adres</label>
+          <input type="text" id="edit-adres" value="${esc(c.adres || '')}" placeholder="Straat, postcode en plaats">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-small" id="btn-save-customer-info">Opslaan</button>
+    `;
+    nameBlock.querySelector('#btn-save-customer-info').addEventListener('click', () => {
+      const nieuweNaam = nameBlock.querySelector('#edit-naam').value.trim();
+      if (!nieuweNaam){ alert('Naam mag niet leeg zijn.'); return; }
+      c.naam = nieuweNaam;
+      c.adres = nameBlock.querySelector('#edit-adres').value.trim();
+      saveDB(); renderCustomerList(); renderArticleTable();
+      renderCustomerDetail(content, customerId, close);
+    });
+  });
+  const blocksEl = content.querySelector('#invoice-blocks');
+  sorted.forEach(inv => {
+    const block = document.createElement('div');
+    block.className = 'invoice-block';
+    block.innerHTML = `
+      <div class="invoice-block-head">
+        <span class="datum">${esc(isoToDutchDate(inv.datum))}</span>
+        <span class="nr">${inv.factuurnr ? 'Factuur ' + esc(inv.factuurnr) : ''}</span>
+      </div>
+      <div class="invoice-items">
+        ${inv.items.map(it => `<div class="item-line"><span>${esc(it.aantal)}&times; ${esc(it.naam)} ${it.type==='workshop' ? '<span class="type-pill">workshop</span>' : ''}</span><span>${formatEuro(it.totaal)}</span></div>`).join('')}
+      </div>
+      <div class="invoice-block-head" style="margin-top:6px;">
+        <span></span><span class="datum">${formatEuro(inv.totaal)}</span>
+      </div>
+      <div class="invoice-block-actions">
+        <button class="btn btn-secondary btn-small btn-edit-inv">Bewerken</button>
+        <button class="btn btn-danger btn-small btn-del-inv">Verwijderen</button>
+      </div>
+    `;
+    block.querySelector('.btn-edit-inv').addEventListener('click', () => openEditInvoice(c.id, inv.id, close));
+    block.querySelector('.btn-del-inv').addEventListener('click', () => {
+      if (confirm('Deze factuur verwijderen bij ' + c.naam + '?')){
+        c.invoices = c.invoices.filter(i => i.id !== inv.id);
+        saveDB(); renderCustomerList(); renderArticleTable();
+        renderCustomerDetail(content, customerId, close);
+      }
+    });
+    blocksEl.appendChild(block);
+  });
+
+  content.querySelector('#btn-close-detail').addEventListener('click', close);
+  content.querySelector('#btn-del-customer').addEventListener('click', () => {
+    if (confirm(`${c.naam} en alle ${c.invoices.length} bestelling(en) verwijderen? Dit kan niet ongedaan worden gemaakt.`)){
+      db.customers = db.customers.filter(x => x.id !== customerId);
+      saveDB(); renderCustomerList(); renderArticleTable(); close();
+    }
+  });
+}
+
+function openEditInvoice(customerId, invoiceId, parentClose){
+  const c = db.customers.find(x => x.id === customerId);
+  const inv = c.invoices.find(i => i.id === invoiceId);
+  parentClose();
+  openModal((content, close) => {
+    content.innerHTML = `<h2 style="margin-bottom:14px;">Factuur bewerken \u2014 ${esc(c.naam)}</h2><div id="edit-form-host"></div>`;
+    buildInvoiceForm(document.getElementById('edit-form-host'), {
+      klantnaam: c.naam, adres: c.adres || '', datum: isoToDutchDate(inv.datum) || inv.datum, factuurnr: inv.factuurnr, items: inv.items, matched: true
+    }, {
+      mode: 'edit',
+      onSave: (data) => {
+        saveInvoiceFromForm(data, customerId, invoiceId);
+        close();
+        showToast('Factuur bijgewerkt');
+      },
+      onCancel: () => close()
+    });
+  });
+}
+
+/* ================================================================
+   ARTIKELEN-TAB
+================================================================= */
+let articleSort = { key: 'omzet', dir: -1 };
+document.querySelectorAll('#article-table th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    articleSort.dir = (articleSort.key === key) ? -articleSort.dir : -1;
+    articleSort.key = key;
+    renderArticleTable();
+  });
+});
+
+function computeArticleStats(){
+  const map = new Map();
+  db.customers.forEach(c => {
+    c.invoices.forEach(inv => {
+      inv.items.forEach(it => {
+        const key = it.naam.trim().toLowerCase();
+        if (!map.has(key)) map.set(key, { naam: it.naam.trim(), type: it.type, aantal: 0, omzet: 0, klanten: new Set() });
+        const rec = map.get(key);
+        rec.aantal += Number(it.aantal) || 0;
+        rec.omzet += Number(it.totaal) || 0;
+        rec.klanten.add(c.id);
+        if (it.type === 'workshop') rec.type = 'workshop';
+      });
+    });
+  });
+  return Array.from(map.values()).map(r => ({ ...r, klanten: r.klanten.size }));
+}
+
+function renderArticleTable(){
+  const rows = computeArticleStats();
+  rows.sort((a,b) => {
+    const k = articleSort.key;
+    if (k === 'naam' || k === 'type') return articleSort.dir * String(a[k]).localeCompare(String(b[k]), 'nl');
+    return articleSort.dir * (a[k] - b[k]);
+  });
+
+  const tbody = document.getElementById('article-tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${esc(r.naam)}</td>
+      <td><span class="type-pill">${r.type === 'workshop' ? 'workshop' : 'artikel'}</span></td>
+      <td>${r.aantal}</td>
+      <td>${formatEuro(r.omzet)}</td>
+      <td>${r.klanten}</td>
+    </tr>
+  `).join('');
+  document.getElementById('artikelen-empty').style.display = rows.length === 0 ? 'block' : 'none';
+  document.getElementById('article-table').style.display = rows.length === 0 ? 'none' : 'table';
+}
+
+/* ================================================================
+   DATALISTS (autocomplete klantnaam / artikelnaam)
+================================================================= */
+function refreshDatalists(){
+  const customerNames = [...new Set(db.customers.map(c => c.naam))].sort((a,b) => a.localeCompare(b,'nl'));
+  document.getElementById('known-customers').innerHTML = customerNames.map(n => `<option value="${esc(n)}">`).join('');
+
+  const articleNames = new Set();
+  db.customers.forEach(c => c.invoices.forEach(inv => inv.items.forEach(it => articleNames.add(it.naam))));
+  document.getElementById('known-articles').innerHTML = [...articleNames].sort((a,b) => a.localeCompare(b,'nl')).map(n => `<option value="${esc(n)}">`).join('');
+}
+
+/* ================================================================
+   BACK-UP HERINNERING
+   Onthoudt wanneer de laatste back-up is gedownload en wanneer de
+   herinnering voor het laatst is weggeklikt, zodat de banner niet
+   irritant vaak terugkomt maar ook niet vergeten wordt.
+================================================================= */
+const BACKUP_REMINDER_DAYS = 14;
+let backupMeta = { lastBackup: null, lastDismiss: null };
+
+async function loadBackupMeta(){
+  const raw = await storageGet(BACKUP_META_KEY);
+  if (raw){ try{ backupMeta = JSON.parse(raw); }catch(e){ /* negeer corrupte meta */ } }
+}
+async function saveBackupMeta(){ await storageSet(BACKUP_META_KEY, JSON.stringify(backupMeta)); }
+
+function daysSince(isoDateStr){
+  if (!isoDateStr) return Infinity;
+  const then = new Date(isoDateStr + 'T00:00:00');
+  const now = new Date(todayISO() + 'T00:00:00');
+  return Math.round((now - then) / 86400000);
+}
+
+function updateBackupBanner(){
+  const banner = document.getElementById('backup-banner');
+  const textEl = document.getElementById('backup-banner-text');
+  const hasCustomers = db.customers.length > 0;
+  const sinceBackup = daysSince(backupMeta.lastBackup);
+  const overdue = sinceBackup >= BACKUP_REMINDER_DAYS;
+  const dismissedToday = backupMeta.lastDismiss === todayISO();
+
+  if (hasCustomers && overdue && !dismissedToday){
+    textEl.textContent = backupMeta.lastBackup
+      ? `Je laatste back-up is ${sinceBackup} dagen geleden. Zet je klantgegevens weer even veilig.`
+      : 'Je hebt nog geen back-up gemaakt van je klantgegevens. Doe dit even voor de zekerheid.';
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+document.getElementById('btn-banner-backup').addEventListener('click', () => document.getElementById('btn-export-json').click());
+document.getElementById('btn-banner-dismiss').addEventListener('click', async () => {
+  backupMeta.lastDismiss = todayISO();
+  await saveBackupMeta();
+  updateBackupBanner();
+});
+
+/* ================================================================
+   EXPORT / IMPORT
+================================================================= */
+document.getElementById('btn-export-json').addEventListener('click', async () => {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, `lotus-klanten-backup-${todayISO()}.json`);
+  backupMeta.lastBackup = todayISO();
+  await saveBackupMeta();
+  updateBackupBanner();
+  showToast('Back-up gedownload');
+});
+
+document.getElementById('btn-export-excel').addEventListener('click', () => {
+  const sortedCustomers = db.customers.slice().sort((a,b) => a.naam.localeCompare(b.naam, 'nl'));
+
+  const detailRows = [['Besteldatum','Klantnaam','Product','Aantal','Prijs']];
+  sortedCustomers.forEach(c => {
+    c.invoices
+      .slice()
+      .sort((a,b) => (a.datum||'').localeCompare(b.datum||''))
+      .forEach(inv => {
+        inv.items.forEach(it => {
+          detailRows.push([isoToDutchDate(inv.datum), c.naam, it.naam, it.aantal, it.prijs]);
+        });
+      });
+  });
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+  detailSheet['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 34 }, { wch: 8 }, { wch: 10 }];
+
+  const summaryRows = [['Klantnaam','Adres','Aantal bestellingen','Aantal artikelen','Totaal besteed','Laatste bestelling']];
+  sortedCustomers.forEach(c => {
+    const aantalArtikelen = c.invoices.reduce((s,inv) => s + inv.items.reduce((s2,it) => s2 + (it.aantal||0), 0), 0);
+    const totaalBesteed = c.invoices.reduce((s,inv) => s + (inv.totaal||0), 0);
+    const laatste = c.invoices.reduce((max,inv) => (inv.datum||'') > max ? inv.datum : max, '');
+    summaryRows.push([c.naam, c.adres || '', c.invoices.length, aantalArtikelen, totaalBesteed, isoToDutchDate(laatste)]);
+  });
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet['!cols'] = [{ wch: 24 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+
+  const productMap = new Map(); // key: klant-id + '||' + productnaam
+  sortedCustomers.forEach(c => {
+    c.invoices.forEach(inv => {
+      inv.items.forEach(it => {
+        const key = c.id + '||' + it.naam;
+        if (!productMap.has(key)){
+          productMap.set(key, { klant: c.naam, product: it.naam, aantal: 0, totaal: 0, laatste: '' });
+        }
+        const entry = productMap.get(key);
+        entry.aantal += (it.aantal || 0);
+        entry.totaal += (it.totaal || 0);
+        if ((inv.datum || '') > entry.laatste) entry.laatste = inv.datum || '';
+      });
+    });
+  });
+  const productRows = [['Klantnaam','Product','Totaal aantal','Totaal besteed','Laatste bestelling']];
+  Array.from(productMap.values())
+    .sort((a,b) => a.klant.localeCompare(b.klant, 'nl') || a.product.localeCompare(b.product, 'nl'))
+    .forEach(e => productRows.push([e.klant, e.product, e.aantal, e.totaal, isoToDutchDate(e.laatste)]));
+  const productSheet = XLSX.utils.aoa_to_sheet(productRows);
+  productSheet['!cols'] = [{ wch: 24 }, { wch: 34 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Per klant');
+  XLSX.utils.book_append_sheet(workbook, productSheet, 'Per klant en product');
+  XLSX.utils.book_append_sheet(workbook, detailSheet, 'Klantenhistorie');
+  XLSX.writeFile(workbook, `lotus-klanten-historie-${todayISO()}.xlsx`);
+  showToast('Excel-bestand gedownload');
+});
+
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const rows = [['Klant','Adres','Datum','Factuurnummer','Artikel','Type','Aantal','Prijs per stuk','Totaal']];
+  db.customers.forEach(c => {
+    c.invoices.forEach(inv => {
+      inv.items.forEach(it => {
+        rows.push([c.naam, c.adres || '', isoToDutchDate(inv.datum), inv.factuurnr||'', it.naam, it.type, it.aantal, it.prijs, it.totaal]);
+      });
+    });
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  downloadBlob(blob, `lotus-klanten-export-${todayISO()}.csv`);
+  showToast('CSV gedownload');
+});
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('btn-import-json').addEventListener('click', () => document.getElementById('import-input').click());
+document.getElementById('import-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (!confirm('Dit vervangt alle huidige gegevens in deze app door de gegevens uit het back-upbestand. Doorgaan?')) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!parsed || !Array.isArray(parsed.customers)) throw new Error('Onherkend formaat');
+    db = parsed;
+    await saveDB();
+    renderCustomerList(); renderArticleTable();
+    showToast('Back-up teruggezet');
+  }catch(err){
+    alert('Kon dit bestand niet inlezen als back-up: ' + err.message);
+  }
+});
+
+/* ================================================================
+   MODAL
+================================================================= */
+const modalOverlay = document.getElementById('modal-overlay');
+const modalContent = document.getElementById('modal-content');
+function openModal(renderFn){
+  modalContent.innerHTML = '<div class="modal-close-row"><button aria-label="Sluiten">&times;</button></div>';
+  const closeBtn = modalContent.querySelector('.modal-close-row button');
+  const close = () => { modalOverlay.classList.add('hidden'); modalContent.innerHTML = ''; };
+  closeBtn.addEventListener('click', close);
+  const body = document.createElement('div');
+  modalContent.appendChild(body);
+  renderFn(body, close);
+  modalOverlay.classList.remove('hidden');
+}
+modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) modalOverlay.classList.add('hidden'), modalContent.innerHTML = ''; });
+
+/* ================================================================
+   TOAST
+================================================================= */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ================================================================
+   TABS
+================================================================= */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+function updateEmptyStates(){
+  document.getElementById('upload-empty').style.display = reviewListEl.children.length === 0 ? 'block' : 'none';
+}
+
+/* ================================================================
+   INIT
+   Start pas nadat is ingelogd met Google (zie onGoogleLoginSuccess).
+================================================================= */
+async function startApp(){
+  await loadDB();
+  await loadBackupMeta();
+  refreshDatalists();
+  renderCustomerList();
+  renderArticleTable();
+  updateEmptyStates();
+  updateBackupBanner();
+}
+waitForGoogleLib();
+</script>
+</body>
+</html>
