@@ -92,6 +92,7 @@
   .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;}
   .badge-ok{background:#E4F2E7;color:var(--clay-dark);}
   .badge-warn{background:var(--warn-bg);color:var(--warn);}
+  .badge-dup{background:#FBECEB;color:#B3261E;}
 
   .review-card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px;background:var(--porcelain);}
   .review-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
@@ -258,6 +259,9 @@
       <input type="file" id="pdf-input" accept="application/pdf" multiple>
     </div>
     <div id="processing-note"></div>
+    <div id="save-all-bar" style="display:none;margin-bottom:14px;text-align:right;">
+      <button class="btn btn-primary" id="btn-save-all">Alles in &eacute;&eacute;n keer opslaan</button>
+    </div>
     <div id="review-list"></div>
     <div id="upload-empty" class="empty-state">
       <h3>Nog geen facturen ge&uuml;pload</h3>
@@ -551,6 +555,15 @@ function getOrCreateCustomer(naam, adres){
   if (!c){ c = { id: uid('c'), naam: naam.trim(), adres: (adres||'').trim(), invoices: [] }; db.customers.push(c); }
   else if (adres && adres.trim() && !c.adres){ c.adres = adres.trim(); }
   return c;
+}
+function findExistingInvoiceByNumber(factuurnr){
+  const nr = (factuurnr || '').trim().toLowerCase();
+  if (!nr) return null;
+  for (const c of db.customers){
+    const inv = c.invoices.find(i => (i.factuurnr || '').trim().toLowerCase() === nr);
+    if (inv) return { customer: c, invoice: inv };
+  }
+  return null;
 }
 
 /* ================================================================
@@ -942,6 +955,20 @@ async function processUploadedFile(file){
 }
 
 function addReviewCard(draft){
+  // Waarschuw meteen bij het inlezen als dit factuurnummer al is opgeslagen,
+  // of al klaarstaat in een andere nog niet opgeslagen kaart hieronder.
+  if (draft.factuurnr){
+    const existing = findExistingInvoiceByNumber(draft.factuurnr);
+    if (existing){
+      draft.duplicateWarning = `Factuurnummer ${draft.factuurnr} is al opgeslagen bij ${existing.customer.naam}`;
+    } else {
+      const nrNorm = draft.factuurnr.trim().toLowerCase();
+      const openCards = Array.from(reviewListEl.querySelectorAll('.f-factuurnr'));
+      if (openCards.some(inp => inp.value.trim().toLowerCase() === nrNorm)){
+        draft.duplicateWarning = `Factuurnummer ${draft.factuurnr} staat hieronder al klaar \u2014 waarschijnlijk twee keer hetzelfde bestand gekozen`;
+      }
+    }
+  }
   const wrapper = document.createElement('div');
   buildInvoiceForm(wrapper, draft, {
     mode: 'review',
@@ -968,10 +995,13 @@ function buildInvoiceForm(container, draft, opts){
   const badge = draft.matched
     ? '<span class="badge badge-ok">Factuur automatisch herkend</span>'
     : (opts.mode === 'manual' ? '' : '<span class="badge badge-warn">Automatisch met beperkte herkenning \u2014 controleer goed</span>');
+  const dupBadge = draft.duplicateWarning
+    ? `<span class="badge badge-dup">\u26a0 ${esc(draft.duplicateWarning)}</span>`
+    : '';
 
   card.innerHTML = `
     <div class="review-card-head">
-      <div>${badge}</div>
+      <div>${badge} ${dupBadge}</div>
       ${draft.bestandsnaam ? `<span class="filename">${esc(draft.bestandsnaam)}</span>` : ''}
     </div>
     <div class="form-row">
@@ -1054,9 +1084,10 @@ function buildInvoiceForm(container, draft, opts){
   }
 
   card.querySelector('.btn-cancel').addEventListener('click', () => opts.onCancel && opts.onCancel());
-  card.querySelector('.btn-save').addEventListener('click', () => {
+
+  function collectCardData(){
     const klantnaam = card.querySelector('.f-klantnaam').value.trim();
-    if (!klantnaam){ alert('Vul een klantnaam in voor je opslaat.'); return; }
+    if (!klantnaam) return { error: 'geen klantnaam ingevuld' };
     const adres = card.querySelector('.f-adres').value.trim();
     const datum = card.querySelector('.f-datum').value || todayISO();
     const factuurnr = card.querySelector('.f-factuurnr').value.trim();
@@ -1067,10 +1098,34 @@ function buildInvoiceForm(container, draft, opts){
       totaal: parseFloat(tr.querySelector('.i-totaal').value) || 0,
       type: tr.querySelector('.i-type').value
     })).filter(it => it.naam);
-    if (items.length === 0){ alert('Voeg minstens \u00e9\u00e9n artikel of workshop toe voor je opslaat.'); return; }
+    if (items.length === 0) return { error: 'geen artikelen of workshops ingevuld' };
     const invoiceTotaal = items.reduce((s,it) => s + it.totaal, 0);
-    opts.onSave({ klantnaam, adres, datum, factuurnr, items, totaal: invoiceTotaal });
+    return { data: { klantnaam, adres, datum, factuurnr, items, totaal: invoiceTotaal } };
+  }
+
+  card.querySelector('.btn-save').addEventListener('click', () => {
+    const res = collectCardData();
+    if (res.error){
+      alert(res.error === 'geen klantnaam ingevuld' ? 'Vul een klantnaam in voor je opslaat.' : 'Voeg minstens \u00e9\u00e9n artikel of workshop toe voor je opslaat.');
+      return;
+    }
+    // Dubbele facturen voorkomen: check op factuurnummer (niet bij het
+    // bewerken van een bestaande factuur, want dan "bestaat" het nummer al).
+    if (opts.mode !== 'edit' && res.data.factuurnr){
+      const dup = findExistingInvoiceByNumber(res.data.factuurnr);
+      if (dup){
+        const doorgaan = confirm(`Factuurnummer ${res.data.factuurnr} is al opgeslagen bij ${dup.customer.naam} (${isoToDutchDate(dup.invoice.datum) || 'datum onbekend'}). Wil je deze factuur toch n\u00f3g een keer opslaan? Dat leidt tot dubbele tellingen.`);
+        if (!doorgaan) return;
+      }
+    }
+    opts.onSave(res.data);
   });
+
+  // API voor 'Alles in \u00e9\u00e9n keer opslaan' (alleen relevant in review-modus)
+  if (opts.mode === 'review'){
+    card.__collectCardData = collectCardData;
+    card.__saveViaAll = (data) => opts.onSave(data);
+  }
 
   container.appendChild(card);
 }
@@ -1544,7 +1599,39 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 function updateEmptyStates(){
   document.getElementById('upload-empty').style.display = reviewListEl.children.length === 0 ? 'block' : 'none';
+  const cardCount = reviewListEl.querySelectorAll('.review-card').length;
+  document.getElementById('save-all-bar').style.display = cardCount >= 2 ? 'block' : 'none';
 }
+
+document.getElementById('btn-save-all').addEventListener('click', () => {
+  const cards = Array.from(reviewListEl.querySelectorAll('.review-card'));
+  let saved = 0;
+  const skipped = [];
+  for (const c of cards){
+    if (!c.__collectCardData) continue;
+    const res = c.__collectCardData();
+    const label = res.data && res.data.factuurnr ? `Factuur ${res.data.factuurnr}` : 'Factuur zonder nummer';
+    if (res.error){
+      skipped.push(`${label}: ${res.error}`);
+      continue;
+    }
+    if (res.data.factuurnr){
+      const dup = findExistingInvoiceByNumber(res.data.factuurnr);
+      if (dup){
+        skipped.push(`${label}: al opgeslagen bij ${dup.customer.naam} \u2014 overgeslagen om dubbele tellingen te voorkomen`);
+        continue;
+      }
+    }
+    c.__saveViaAll(res.data);
+    saved++;
+  }
+  updateEmptyStates();
+  if (skipped.length){
+    alert(`${saved} ${saved === 1 ? 'factuur' : 'facturen'} opgeslagen.\n\nNiet opgeslagen (staan nog hieronder om te controleren):\n\u2022 ${skipped.join('\n\u2022 ')}`);
+  } else if (saved > 0){
+    showToast(`${saved} ${saved === 1 ? 'factuur' : 'facturen'} opgeslagen`);
+  }
+});
 
 /* ================================================================
    INIT
